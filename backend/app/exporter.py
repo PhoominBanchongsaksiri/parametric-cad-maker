@@ -27,11 +27,7 @@ def to_stl(wp: cq.Workplane) -> bytes:
 
 
 def to_3mf(wp: cq.Workplane) -> bytes:
-    # CadQuery 2.7 does not have a 3MF exporter; fall back to AMF
-    try:
-        return _with_tempfile(".3mf", wp, exporters.ExportTypes.AMF)
-    except AttributeError:
-        return _with_tempfile(".amf", wp, exporters.ExportTypes.AMF)
+    return _with_tempfile(".3mf", wp, exporters.ExportTypes.THREEMF)
 
 
 def to_glb(wp: cq.Workplane) -> bytes:

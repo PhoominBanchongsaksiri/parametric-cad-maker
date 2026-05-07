@@ -64,6 +64,19 @@ def test_preview_returns_bytes(client):
     assert len(r.content) > 0
 
 
+def test_preview_content_type(client):
+    r = client.post("/api/preview", json=BASIC_PROJECT)
+    assert r.status_code == 200
+    assert "gltf-binary" in r.headers.get("content-type", "")
+
+
+def test_preview_content_is_not_empty_geometry(client):
+    r = client.post("/api/preview", json=BASIC_PROJECT)
+    assert r.status_code == 200
+    # Minimum plausible size for any geometry representation
+    assert len(r.content) > 100
+
+
 def test_export_step(client):
     r = client.post("/api/export/step", json=BASIC_PROJECT)
     assert r.status_code == 200
@@ -74,6 +87,13 @@ def test_export_stl(client):
     r = client.post("/api/export/stl", json=BASIC_PROJECT)
     assert r.status_code == 200
     assert len(r.content) > 0
+
+
+def test_export_3mf(client):
+    r = client.post("/api/export/3mf", json=BASIC_PROJECT)
+    assert r.status_code == 200
+    # 3MF is a ZIP archive — must start with PK header
+    assert r.content[:2] == b"PK"
 
 
 def test_export_bad_format(client):

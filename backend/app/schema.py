@@ -42,6 +42,19 @@ class ScrewHoleSpec(BaseModel):
     countersink_angle: float | str = 90.0
 
 
+class BossPatternSpec(BaseModel):
+    face: Literal["top", "bottom"] = "top"
+    x0: float | str        # x center of first boss
+    y0: float | str        # y center of first boss
+    nx: int = 1            # columns
+    ny: int = 1            # rows
+    dx: float | str = 0.0  # x step between columns
+    dy: float | str = 0.0  # y step between rows
+    od: float | str
+    height: float | str
+    hole_diameter: float | str | None = None
+
+
 class EnclosureFeature(BaseModel):
     type: Literal["enclosure"]
     id: str
@@ -51,6 +64,7 @@ class EnclosureFeature(BaseModel):
     wall: float | str = 2.0
     cutouts: list[CutoutSpec] = Field(default_factory=list)
     bosses: list[BossSpec] = Field(default_factory=list)
+    boss_patterns: list[BossPatternSpec] = Field(default_factory=list)
     screw_holes: list[ScrewHoleSpec] = Field(default_factory=list)
 
 

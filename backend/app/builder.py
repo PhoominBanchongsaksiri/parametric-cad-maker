@@ -4,7 +4,7 @@ import cadquery as cq
 from .resolver import resolve_expr
 from .schema import (
     AnyFeature, EnclosureFeature, BoxPrimitive, CylinderPrimitive, SpherePrimitive,
-    CutoutSpec, BossSpec, ScrewHoleSpec,
+    CutoutSpec, BossSpec, BossPatternSpec, ScrewHoleSpec,
 )
 
 
@@ -132,24 +132,13 @@ def _apply_screw_hole(
 
     wp = solid.faces(_face_selector(face)).workplane().center(sx, sy)
 
-    # Countersink (before the through hole so geometry is clean)
     if sh.countersink_diameter is not None:
+        import math as _math
         csd = resolve_expr(sh.countersink_diameter, env)
         angle = resolve_expr(sh.countersink_angle, env)
-        cs_depth = (csd - sd) / 2 / (1 if angle == 90 else __import__("math").tan(__import__("math").radians(angle / 2)))
-        solid = (
-            solid.faces(_face_selector(face)).workplane().center(sx, sy)
-            .add(
-                cq.Workplane().center(sx, sy)
-                .add(
-                    cq.CQ(
-                        cq.Solid.makeCone(csd / 2, sd / 2, cs_depth)
-                    )
-                )
-            )
-        )
-        # Simple conical countersink via revolve is complex; use cutBlind with taper approximation
-        # Use cq.occ_impl approach: just cut the countersink as a larger circle to cs_depth
+        cs_depth = (csd - sd) / 2 / (1 if angle == 90 else _math.tan(_math.radians(angle / 2)))
+        # cap below face_wall to avoid degenerate topology when cs_depth == wall
+        cs_depth = min(cs_depth, face_wall - 0.01)
         solid = (
             solid.faces(_face_selector(face)).workplane().center(sx, sy)
             .circle(csd / 2).cutBlind(-cs_depth)
@@ -174,6 +163,34 @@ def _apply_screw_hole(
 
 
 # ---------------------------------------------------------------------------
+# Boss pattern worker
+# ---------------------------------------------------------------------------
+
+def _apply_boss_pattern(
+    solid: cq.Workplane,
+    bp: BossPatternSpec,
+    env: dict[str, float],
+    L: float, W: float, H: float,
+) -> cq.Workplane:
+    x0 = resolve_expr(bp.x0, env)
+    y0 = resolve_expr(bp.y0, env)
+    dx = resolve_expr(bp.dx, env)
+    dy = resolve_expr(bp.dy, env)
+    for i in range(bp.nx):
+        for j in range(bp.ny):
+            boss = BossSpec(
+                x=x0 + i * dx,
+                y=y0 + j * dy,
+                face=bp.face,
+                od=bp.od,
+                height=bp.height,
+                hole_diameter=bp.hole_diameter,
+            )
+            solid = _apply_boss(solid, boss, env, L, W, H)
+    return solid
+
+
+# ---------------------------------------------------------------------------
 # Enclosure builder
 # ---------------------------------------------------------------------------
 
@@ -193,6 +210,9 @@ def _build_enclosure(feat: EnclosureFeature, env: dict[str, float]) -> cq.Workpl
 
     for boss in feat.bosses:
         solid = _apply_boss(solid, boss, env, L, W, H)
+
+    for bp in feat.boss_patterns:
+        solid = _apply_boss_pattern(solid, bp, env, L, W, H)
 
     for sh in feat.screw_holes:
         solid = _apply_screw_hole(solid, sh, env, L, W, H, wall)
