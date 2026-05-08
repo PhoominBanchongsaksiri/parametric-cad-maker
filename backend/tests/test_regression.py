@@ -40,26 +40,25 @@ def base_vol():
 
 ALL_FACES = ["top", "bottom", "front", "back", "left", "right"]
 
-_RECT_CUT   = {"shape": "rect",   "x": 0, "y": 0, "width": 10, "height": 8}
-_CIRCLE_CUT = {"shape": "circle", "x": 0, "y": 0, "diameter": 8}
-_SLOT_CUT   = {"shape": "slot",   "x": 0, "y": 0, "slot_length": 10, "diameter": 6}
+def _cut(face, shape, **kwargs):
+    return {"target": {"plane": face, "u": 0, "v": 0}, "shape": shape, **kwargs}
 
 
 @pytest.mark.parametrize("face", ALL_FACES)
 def test_rect_cutout_all_faces(face):
-    proj = _enc(cutouts=[{"face": face, **_RECT_CUT}])
+    proj = _enc(cutouts=[_cut(face, "rect", width=10, height=8)])
     assert _vol(proj) < base_vol(), f"rect cutout on {face} did not reduce volume"
 
 
 @pytest.mark.parametrize("face", ALL_FACES)
 def test_circle_cutout_all_faces(face):
-    proj = _enc(cutouts=[{"face": face, **_CIRCLE_CUT}])
+    proj = _enc(cutouts=[_cut(face, "circle", diameter=8)])
     assert _vol(proj) < base_vol(), f"circle cutout on {face} did not reduce volume"
 
 
 @pytest.mark.parametrize("face", ALL_FACES)
 def test_slot_cutout_all_faces(face):
-    proj = _enc(cutouts=[{"face": face, **_SLOT_CUT}])
+    proj = _enc(cutouts=[_cut(face, "slot", slot_length=10, diameter=6)])
     assert _vol(proj) < base_vol(), f"slot cutout on {face} did not reduce volume"
 
 
@@ -133,6 +132,10 @@ def test_boss_pattern_on_bottom_face():
 # Counterbore precise volume probe
 # ---------------------------------------------------------------------------
 
+def _sh(face, **kwargs):
+    return {"target": {"plane": face, "u": 0, "v": 0}, **kwargs}
+
+
 def test_counterbore_volume_delta():
     """Counterbore removes an annular cylinder on top of the through-hole.
     delta = pi * cbd_depth * ((cbd/2)^2 - (hole_d/2)^2)
@@ -141,11 +144,9 @@ def test_counterbore_volume_delta():
     cbd_depth = 2.0
     hole_d = 3.0
 
-    proj_plain = _enc(screw_holes=[{"face": "top", "x": 0, "y": 0, "diameter": hole_d}])
-    proj_cb = _enc(screw_holes=[{
-        "face": "top", "x": 0, "y": 0, "diameter": hole_d,
-        "counterbore_diameter": cbd, "counterbore_depth": cbd_depth,
-    }])
+    proj_plain = _enc(screw_holes=[_sh("top", diameter=hole_d)])
+    proj_cb = _enc(screw_holes=[_sh("top", diameter=hole_d,
+        counterbore_diameter=cbd, counterbore_depth=cbd_depth)])
 
     delta = _vol(proj_plain) - _vol(proj_cb)
     expected = math.pi * cbd_depth * ((cbd / 2) ** 2 - (hole_d / 2) ** 2)
@@ -153,20 +154,16 @@ def test_counterbore_volume_delta():
 
 
 def test_counterbore_on_front_face():
-    proj_plain = _enc(screw_holes=[{"face": "front", "x": 0, "y": 0, "diameter": 3}])
-    proj_cb = _enc(screw_holes=[{
-        "face": "front", "x": 0, "y": 0, "diameter": 3,
-        "counterbore_diameter": 6, "counterbore_depth": 2,
-    }])
+    proj_plain = _enc(screw_holes=[_sh("front", diameter=3)])
+    proj_cb = _enc(screw_holes=[_sh("front", diameter=3,
+        counterbore_diameter=6, counterbore_depth=2)])
     assert _vol(proj_cb) < _vol(proj_plain)
 
 
 def test_counterbore_on_bottom_face():
-    proj_plain = _enc(screw_holes=[{"face": "bottom", "x": 0, "y": 0, "diameter": 3}])
-    proj_cb = _enc(screw_holes=[{
-        "face": "bottom", "x": 0, "y": 0, "diameter": 3,
-        "counterbore_diameter": 6, "counterbore_depth": 2,
-    }])
+    proj_plain = _enc(screw_holes=[_sh("bottom", diameter=3)])
+    proj_cb = _enc(screw_holes=[_sh("bottom", diameter=3,
+        counterbore_diameter=6, counterbore_depth=2)])
     assert _vol(proj_cb) < _vol(proj_plain)
 
 
@@ -175,32 +172,20 @@ def test_counterbore_on_bottom_face():
 # ---------------------------------------------------------------------------
 
 def test_countersink_reduces_volume_more_than_plain_hole():
-    proj_plain = _enc(screw_holes=[{"face": "top", "x": 0, "y": 0, "diameter": 3}])
-    proj_cs = _enc(screw_holes=[{
-        "face": "top", "x": 0, "y": 0, "diameter": 3,
-        "countersink_diameter": 7,
-    }])
+    proj_plain = _enc(screw_holes=[_sh("top", diameter=3)])
+    proj_cs = _enc(screw_holes=[_sh("top", diameter=3, countersink_diameter=7)])
     assert _vol(proj_cs) < _vol(proj_plain)
 
 
 def test_countersink_larger_diameter_removes_more():
-    proj_cs_small = _enc(screw_holes=[{
-        "face": "top", "x": 0, "y": 0, "diameter": 3,
-        "countersink_diameter": 5,
-    }])
-    proj_cs_large = _enc(screw_holes=[{
-        "face": "top", "x": 0, "y": 0, "diameter": 3,
-        "countersink_diameter": 8,
-    }])
+    proj_cs_small = _enc(screw_holes=[_sh("top", diameter=3, countersink_diameter=5)])
+    proj_cs_large = _enc(screw_holes=[_sh("top", diameter=3, countersink_diameter=8)])
     assert _vol(proj_cs_large) < _vol(proj_cs_small)
 
 
 def test_countersink_on_front_face():
-    proj_plain = _enc(screw_holes=[{"face": "front", "x": 0, "y": 0, "diameter": 3}])
-    proj_cs = _enc(screw_holes=[{
-        "face": "front", "x": 0, "y": 0, "diameter": 3,
-        "countersink_diameter": 6,
-    }])
+    proj_plain = _enc(screw_holes=[_sh("front", diameter=3)])
+    proj_cs = _enc(screw_holes=[_sh("front", diameter=3, countersink_diameter=6)])
     assert _vol(proj_cs) < _vol(proj_plain)
 
 
@@ -211,15 +196,15 @@ def test_countersink_on_front_face():
 def test_multiple_cutouts_cumulative():
     """Each additional cutout must further reduce volume."""
     v0 = base_vol()
-    proj1 = _enc(cutouts=[{"face": "top",   "shape": "rect",   "x": 0, "y": 0, "width": 10, "height": 8}])
+    proj1 = _enc(cutouts=[_cut("top", "rect", width=10, height=8)])
     proj2 = _enc(cutouts=[
-        {"face": "top",   "shape": "rect",   "x": 0, "y": 0, "width": 10, "height": 8},
-        {"face": "front", "shape": "circle", "x": 0, "y": 0, "diameter": 8},
+        _cut("top",   "rect",   width=10, height=8),
+        _cut("front", "circle", diameter=8),
     ])
     proj3 = _enc(cutouts=[
-        {"face": "top",   "shape": "rect",   "x": 0, "y": 0, "width": 10, "height": 8},
-        {"face": "front", "shape": "circle", "x": 0, "y": 0, "diameter": 8},
-        {"face": "right", "shape": "slot",   "x": 0, "y": 0, "slot_length": 10, "diameter": 6},
+        _cut("top",   "rect",   width=10, height=8),
+        _cut("front", "circle", diameter=8),
+        _cut("right", "slot",   slot_length=10, diameter=6),
     ])
     v1 = _vol(proj1)
     v2 = _vol(proj2)

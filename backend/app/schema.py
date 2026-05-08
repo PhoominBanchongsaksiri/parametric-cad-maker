@@ -9,16 +9,22 @@ class Parameter(BaseModel):
     value: float | str  # float or formula string
 
 
+class PlacementTarget(BaseModel):
+    """Face-local coordinate target for placing a feature on a named plane."""
+    plane: Literal["top", "bottom", "front", "back", "left", "right"]
+    u: float | str = 0.0  # signed offset along u_axis (face-local)
+    v: float | str = 0.0  # signed offset along v_axis (face-local)
+    rotation: float = 0.0  # reserved — in-plane rotation (degrees, future use)
+
+
 class CutoutSpec(BaseModel):
-    face: Literal["top", "bottom", "front", "back", "left", "right"]
+    target: PlacementTarget
     shape: Literal["rect", "circle", "slot"]
-    x: float | str = 0.0
-    y: float | str = 0.0
-    width: float | str | None = None   # rect / slot
-    height: float | str | None = None  # rect / slot
-    diameter: float | str | None = None  # circle
-    slot_length: float | str | None = None  # slot (length along x)
-    depth: float | str | None = None  # None = through
+    width: float | str | None = None      # rect
+    height: float | str | None = None     # rect
+    diameter: float | str | None = None   # circle / slot
+    slot_length: float | str | None = None  # slot (length along u)
+    depth: float | str | None = None      # None = through-wall
 
 
 class BossSpec(BaseModel):
@@ -31,11 +37,9 @@ class BossSpec(BaseModel):
 
 
 class ScrewHoleSpec(BaseModel):
-    x: float | str
-    y: float | str
-    face: Literal["top", "bottom", "front", "back", "left", "right"] = "top"
+    target: PlacementTarget
     diameter: float | str
-    depth: float | str | None = None  # None = through
+    depth: float | str | None = None  # None = through-wall
     counterbore_diameter: float | str | None = None
     counterbore_depth: float | str | None = None
     countersink_diameter: float | str | None = None

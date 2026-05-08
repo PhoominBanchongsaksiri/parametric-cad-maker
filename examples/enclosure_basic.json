@@ -19,16 +19,19 @@
       "wall":   "wall",
       "cutouts": [
         {
-          "face": "front", "shape": "rect",
-          "x": 0, "y": 0, "width": 40, "height": 20
+          "target": {"plane": "front", "u": 0, "v": 0},
+          "shape": "rect",
+          "width": 40, "height": 20
         },
         {
-          "face": "right", "shape": "circle",
-          "x": 0, "y": 0, "diameter": 12
+          "target": {"plane": "right", "u": 0, "v": 0},
+          "shape": "circle",
+          "diameter": 12
         },
         {
-          "face": "top", "shape": "slot",
-          "x": 0, "y": 0, "slot_length": 40, "diameter": 6
+          "target": {"plane": "top", "u": 0, "v": 0},
+          "shape": "slot",
+          "slot_length": 40, "diameter": 6
         }
       ],
       "bosses": [
@@ -42,8 +45,7 @@
       "boss_patterns": [],
       "screw_holes": [
         {
-          "face": "top",
-          "x": "L/2 - 8", "y": "W/2 - 8",
+          "target": {"plane": "top", "u": "L/2 - 8", "v": "W/2 - 8"},
           "diameter": "screw_d",
           "counterbore_diameter": 6,
           "counterbore_depth": 2

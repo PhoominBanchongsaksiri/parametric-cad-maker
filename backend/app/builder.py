@@ -2,6 +2,7 @@
 from __future__ import annotations
 import cadquery as cq
 from .resolver import resolve_expr
+from .planes import get_plane_info
 from .schema import (
     AnyFeature, EnclosureFeature, BoxPrimitive, CylinderPrimitive, SpherePrimitive,
     CutoutSpec, BossSpec, BossPatternSpec, ScrewHoleSpec,
@@ -9,38 +10,8 @@ from .schema import (
 
 
 # ---------------------------------------------------------------------------
-# Face normal helpers
+# Cutout workers — world-space plane-based (no face selector)
 # ---------------------------------------------------------------------------
-
-_FACE_NORMAL: dict[str, tuple[float, float, float]] = {
-    "top":    (0,  0,  1),
-    "bottom": (0,  0, -1),
-    "front":  (0, -1,  0),
-    "back":   (0,  1,  0),
-    "left":   (-1, 0,  0),
-    "right":  (1,  0,  0),
-}
-
-def _face_selector(face: str) -> cq.selectors.Selector:
-    nx, ny, nz = _FACE_NORMAL[face]
-    return cq.selectors.DirectionMinMaxSelector(
-        cq.Vector(nx, ny, nz), directionMax=True
-    )
-
-
-# ---------------------------------------------------------------------------
-# Cutout workers
-# ---------------------------------------------------------------------------
-
-def _face_dims(face: str, L: float, W: float, H: float, wall: float) -> tuple[float, float, float]:
-    """Return (plane_u, plane_v, cut_depth) for a face given enclosure dims."""
-    if face in ("top", "bottom"):
-        return L, W, wall
-    if face in ("front", "back"):
-        return L, H, wall
-    # left, right
-    return W, H, wall
-
 
 def _apply_cutout(
     solid: cq.Workplane,
@@ -48,34 +19,26 @@ def _apply_cutout(
     env: dict[str, float],
     L: float, W: float, H: float, wall: float,
 ) -> cq.Workplane:
-    face = cut.face
-    cx = resolve_expr(cut.x, env)
-    cy = resolve_expr(cut.y, env)
+    target = cut.target
+    u = resolve_expr(target.u, env)
+    v = resolve_expr(target.v, env)
     depth_val = resolve_expr(cut.depth, env) if cut.depth is not None else None
+    depth = depth_val if depth_val is not None else wall + 1.0
 
-    # Select the face and set up a workplane on it
-    wp = solid.faces(_face_selector(face)).workplane()
-
-    # depth defaults to through (use wall + small epsilon to ensure full cut)
-    _, _, face_wall = _face_dims(face, L, W, H, wall)
-    depth = depth_val if depth_val is not None else face_wall + 1.0
+    pi = get_plane_info(target.plane, u, v, L, W, H)
+    wp = cq.Workplane(pi.cq_plane())
 
     if cut.shape == "rect":
         w = resolve_expr(cut.width, env)
         h = resolve_expr(cut.height, env)
-        solid = wp.center(cx, cy).rect(w, h).cutBlind(-depth)
+        solid = solid.cut(wp.rect(w, h).extrude(depth))
     elif cut.shape == "circle":
         d = resolve_expr(cut.diameter, env)
-        solid = wp.center(cx, cy).circle(d / 2).cutBlind(-depth)
+        solid = solid.cut(wp.circle(d / 2).extrude(depth))
     elif cut.shape == "slot":
         slot_len = resolve_expr(cut.slot_length, env)
         d = resolve_expr(cut.diameter, env)
-        r = d / 2
-        solid = (
-            wp.center(cx, cy)
-            .slot2D(slot_len + d, d)
-            .cutBlind(-depth)
-        )
+        solid = solid.cut(wp.slot2D(slot_len + d, d).extrude(depth))
 
     return solid
 
@@ -112,15 +75,10 @@ def _apply_boss(
 
 
 # ---------------------------------------------------------------------------
-# World-space cylinder cutter (used by screw holes)
+# World-space cylinder cutter (used by boss worker)
 # ---------------------------------------------------------------------------
 
-# Mapping: face name → (world_entry(sx,sy,L,W,H), drill_axis)
-# world_entry is the point on the outer face surface where the drill enters.
-# Derived from CadQuery face workplane conventions:
-#   top/bottom: workplane X=worldX, Y=worldY (bottom: Y=-worldY)
-#   front/back: workplane X=worldX (back: -worldX), Y=worldZ
-#   left/right: workplane X=-worldY (right: worldY), Y=worldZ
+# Mapping used by boss placement only; cutouts/screw holes now use planes.py.
 _FACE_ENTRY: dict[str, object] = {
     "top":    lambda sx, sy, L, W, H: ((sx,    sy,    H/2),  (0,  0, -1)),
     "bottom": lambda sx, sy, L, W, H: ((sx,   -sy,   -H/2),  (0,  0,  1)),
@@ -151,7 +109,7 @@ def _cyl_cutter(
 
 
 # ---------------------------------------------------------------------------
-# Screw hole worker  (world-space — no face selector)
+# Screw hole worker  (world-space via planes.py — no face selector)
 # ---------------------------------------------------------------------------
 
 def _apply_screw_hole(
@@ -162,15 +120,15 @@ def _apply_screw_hole(
 ) -> cq.Workplane:
     import math as _math
 
-    face = sh.face
-    sx = resolve_expr(sh.x, env)
-    sy = resolve_expr(sh.y, env)
+    target = sh.target
+    sx = resolve_expr(target.u, env)
+    sy = resolve_expr(target.v, env)
     sd = resolve_expr(sh.diameter, env)
+    depth = resolve_expr(sh.depth, env) if sh.depth is not None else wall + 1.0
 
-    _, _, face_wall = _face_dims(face, L, W, H, wall)
-    depth = resolve_expr(sh.depth, env) if sh.depth is not None else face_wall + 1.0
-
-    entry, axis = _FACE_ENTRY[face](sx, sy, L, W, H)
+    pi = get_plane_info(target.plane, sx, sy, L, W, H)
+    entry = pi.entry
+    axis = pi.cutter_dir
 
     if sh.countersink_diameter is not None:
         csd = resolve_expr(sh.countersink_diameter, env)
@@ -178,7 +136,7 @@ def _apply_screw_hole(
         cs_depth = (csd - sd) / 2 / (
             1 if angle == 90 else _math.tan(_math.radians(angle / 2))
         )
-        cs_depth = min(cs_depth, face_wall - 0.01)
+        cs_depth = min(cs_depth, wall - 0.01)
         solid = solid.cut(_cyl_cutter(entry, axis, csd / 2, cs_depth))
 
     if sh.counterbore_diameter is not None:

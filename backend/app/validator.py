@@ -15,6 +15,7 @@ class ValidationResult:
 
 def validate_project(project, env: dict[str, float]) -> ValidationResult:
     from .resolver import resolve_expr
+    from .planes import validate_target_bounds
     result = ValidationResult()
 
     for feat in project.features:
@@ -35,6 +36,11 @@ def validate_project(project, env: dict[str, float]) -> ValidationResult:
 
             for i, cut in enumerate(feat.cutouts):
                 cid = f"{fid}.cutouts[{i}]"
+                t = cut.target
+                u = resolve_expr(t.u, env)
+                v = resolve_expr(t.v, env)
+                for err in validate_target_bounds(t.plane, u, v, L, W, H):
+                    result.errors.append(f"{cid}: {err}")
                 depth_raw = cut.depth
                 depth = resolve_expr(depth_raw, env) if depth_raw is not None else None
                 if cut.shape == "rect":
@@ -78,6 +84,11 @@ def validate_project(project, env: dict[str, float]) -> ValidationResult:
 
             for i, sh in enumerate(feat.screw_holes):
                 sid = f"{fid}.screw_holes[{i}]"
+                t = sh.target
+                u = resolve_expr(t.u, env)
+                v = resolve_expr(t.v, env)
+                for err in validate_target_bounds(t.plane, u, v, L, W, H):
+                    result.errors.append(f"{sid}: {err}")
                 sd = resolve_expr(sh.diameter, env)
                 if sd <= 0:
                     result.errors.append(f"{sid}: screw hole diameter must be positive")
