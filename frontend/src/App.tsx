@@ -27,6 +27,7 @@ const body: CSSProperties = {
 export default function App() {
   const [project, setProject] = useState<Project>(EXAMPLE_PROJECT)
   const [glbUrl, setGlbUrl] = useState<string | null>(null)
+  const [modelType, setModelType] = useState<'glb' | 'stl' | null>(null)
   const [errors, setErrors] = useState<string[]>([])
   const [warnings, setWarnings] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -50,11 +51,12 @@ export default function App() {
     setErrors([])
     setWarnings([])
     try {
-      const blob = await postPreview(project)
+      const { blob, contentType } = await postPreview(project)
       if (prevGlbUrl.current) URL.revokeObjectURL(prevGlbUrl.current)
       const url = URL.createObjectURL(blob)
       prevGlbUrl.current = url
       setGlbUrl(url)
+      setModelType(contentType.includes('stl') ? 'stl' : 'glb')
     } catch (e) {
       if (e instanceof ApiError) {
         setErrors(e.errors)
@@ -63,6 +65,7 @@ export default function App() {
         setErrors([String(e)])
       }
       setGlbUrl(null)
+      setModelType(null)
     } finally {
       setLoading(false)
     }
@@ -106,6 +109,7 @@ export default function App() {
   function handleResetExample() {
     setProject(EXAMPLE_PROJECT)
     setGlbUrl(null)
+    setModelType(null)
     setErrors([])
     setWarnings([])
     setValidationResult(null)
@@ -133,6 +137,7 @@ export default function App() {
         <FeatureTree project={project} />
         <Viewport
           glbUrl={glbUrl}
+          modelType={modelType}
           errors={errors}
           warnings={warnings}
           onRegenerate={handlePreview}

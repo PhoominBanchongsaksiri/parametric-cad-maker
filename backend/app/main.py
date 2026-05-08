@@ -48,7 +48,8 @@ def preview(project: Project):
     wps = [wp for _, wp in built]
     merged = merge_workplanes(wps)
     data = to_glb(merged)
-    return Response(content=data, media_type="model/gltf-binary")
+    media_type = "model/gltf-binary" if data[:4] == b"glTF" else "model/stl"
+    return Response(content=data, media_type=media_type)
 
 
 @app.post("/api/export/{fmt}")

@@ -53,7 +53,7 @@ async function extractErrors(res: Response): Promise<{ errors: string[]; warning
   return { errors: [`HTTP ${res.status}: ${res.statusText}`], warnings: [] }
 }
 
-export async function postPreview(project: Project): Promise<Blob> {
+export async function postPreview(project: Project): Promise<{ blob: Blob; contentType: string }> {
   const res = await fetch('/api/preview', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -63,7 +63,9 @@ export async function postPreview(project: Project): Promise<Blob> {
     const { errors, warnings } = await extractErrors(res)
     throw new ApiError(res.status, errors, warnings)
   }
-  return res.blob()
+  const contentType = res.headers.get('content-type') ?? 'model/gltf-binary'
+  const blob = await res.blob()
+  return { blob, contentType }
 }
 
 export async function postValidate(
