@@ -113,7 +113,46 @@ def _apply_boss(
 
 
 # ---------------------------------------------------------------------------
-# Screw hole worker
+# World-space cylinder cutter (used by screw holes)
+# ---------------------------------------------------------------------------
+
+# Mapping: face name → (world_entry(sx,sy,L,W,H), drill_axis)
+# world_entry is the point on the outer face surface where the drill enters.
+# Derived from CadQuery face workplane conventions:
+#   top/bottom: workplane X=worldX, Y=worldY (bottom: Y=-worldY)
+#   front/back: workplane X=worldX (back: -worldX), Y=worldZ
+#   left/right: workplane X=-worldY (right: worldY), Y=worldZ
+_FACE_ENTRY: dict[str, object] = {
+    "top":    lambda sx, sy, L, W, H: ((sx,    sy,    H/2),  (0,  0, -1)),
+    "bottom": lambda sx, sy, L, W, H: ((sx,   -sy,   -H/2),  (0,  0,  1)),
+    "front":  lambda sx, sy, L, W, H: ((sx,   -W/2,   sy),   (0,  1,  0)),
+    "back":   lambda sx, sy, L, W, H: ((-sx,   W/2,   sy),   (0, -1,  0)),
+    "left":   lambda sx, sy, L, W, H: ((-L/2, -sx,    sy),   (1,  0,  0)),
+    "right":  lambda sx, sy, L, W, H: (( L/2,  sx,    sy),   (-1, 0,  0)),
+}
+
+
+def _cyl_cutter(
+    entry: tuple[float, float, float],
+    axis: tuple[float, float, float],
+    radius: float,
+    depth: float,
+) -> cq.Workplane:
+    """Cylinder of given radius/depth starting at entry point, going along axis."""
+    wx, wy, wz = entry
+    ax, ay, az = axis
+    cx = wx + ax * depth / 2
+    cy = wy + ay * depth / 2
+    cz = wz + az * depth / 2
+    if az:
+        return cq.Workplane("XY").cylinder(depth, radius).translate((cx, cy, cz))
+    if ay:
+        return cq.Workplane("XZ").cylinder(depth, radius).translate((cx, cy, cz))
+    return cq.Workplane("YZ").cylinder(depth, radius).translate((cx, cy, cz))
+
+
+# ---------------------------------------------------------------------------
+# Screw hole worker  (world-space — no face selector)
 # ---------------------------------------------------------------------------
 
 def _apply_screw_hole(
@@ -122,6 +161,8 @@ def _apply_screw_hole(
     env: dict[str, float],
     L: float, W: float, H: float, wall: float,
 ) -> cq.Workplane:
+    import math as _math
+
     face = sh.face
     sx = resolve_expr(sh.x, env)
     sy = resolve_expr(sh.y, env)
@@ -130,35 +171,27 @@ def _apply_screw_hole(
     _, _, face_wall = _face_dims(face, L, W, H, wall)
     depth = resolve_expr(sh.depth, env) if sh.depth is not None else face_wall + 1.0
 
-    wp = solid.faces(_face_selector(face)).workplane().center(sx, sy)
+    entry, axis = _FACE_ENTRY[face](sx, sy, L, W, H)
 
     if sh.countersink_diameter is not None:
-        import math as _math
         csd = resolve_expr(sh.countersink_diameter, env)
         angle = resolve_expr(sh.countersink_angle, env)
-        cs_depth = (csd - sd) / 2 / (1 if angle == 90 else _math.tan(_math.radians(angle / 2)))
-        # cap below face_wall to avoid degenerate topology when cs_depth == wall
-        cs_depth = min(cs_depth, face_wall - 0.01)
-        solid = (
-            solid.faces(_face_selector(face)).workplane().center(sx, sy)
-            .circle(csd / 2).cutBlind(-cs_depth)
+        cs_depth = (csd - sd) / 2 / (
+            1 if angle == 90 else _math.tan(_math.radians(angle / 2))
         )
+        cs_depth = min(cs_depth, face_wall - 0.01)
+        solid = solid.cut(_cyl_cutter(entry, axis, csd / 2, cs_depth))
 
-    # Counterbore
     if sh.counterbore_diameter is not None:
         cbd = resolve_expr(sh.counterbore_diameter, env)
-        cbd_depth = resolve_expr(sh.counterbore_depth, env) if sh.counterbore_depth is not None else sd
-        solid = (
-            solid.faces(_face_selector(face)).workplane().center(sx, sy)
-            .circle(cbd / 2).cutBlind(-cbd_depth)
+        cbd_depth = (
+            resolve_expr(sh.counterbore_depth, env)
+            if sh.counterbore_depth is not None
+            else sd
         )
+        solid = solid.cut(_cyl_cutter(entry, axis, cbd / 2, cbd_depth))
 
-    # Through or blind hole
-    solid = (
-        solid.faces(_face_selector(face)).workplane().center(sx, sy)
-        .circle(sd / 2).cutBlind(-depth)
-    )
-
+    solid = solid.cut(_cyl_cutter(entry, axis, sd / 2, depth))
     return solid
 
 
