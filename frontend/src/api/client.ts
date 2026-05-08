@@ -30,20 +30,24 @@ async function extractErrors(res: Response): Promise<{ errors: string[]; warning
       return { errors, warnings }
     }
 
-    // Pydantic validation error format: array of { loc, msg, type }
+    // Pydantic / FastAPI validation error format: array of { loc, msg, type, ... }
     if (Array.isArray(detail)) {
-      const errors = detail.map((e: unknown) => {
-        if (e && typeof e === 'object' && 'msg' in e) {
-          const item = e as { loc?: unknown[]; msg?: string }
-          const loc = Array.isArray(item.loc) ? item.loc.join('.') : ''
-          return loc ? `${loc}: ${item.msg ?? ''}` : (item.msg ?? JSON.stringify(e))
-        }
-        return String(e)
+      const errors = detail.map((e: unknown): string => {
+        if (!e || typeof e !== 'object') return String(e)
+        const obj = e as Record<string, unknown>
+        const msg = typeof obj.msg === 'string' ? obj.msg : ''
+        const loc = Array.isArray(obj.loc) ? obj.loc.join('.') : ''
+        if (loc && msg) return `${loc}: ${msg}`
+        if (msg) return msg
+        // Never produce [object Object] — fall back to JSON
+        return JSON.stringify(e)
       })
       return { errors, warnings: [] }
     }
 
-    return { errors: [String(detail)], warnings: [] }
+    // Scalar detail (e.g. a plain string from a custom HTTPException)
+    if (typeof detail === 'string') return { errors: [detail], warnings: [] }
+    return { errors: [JSON.stringify(detail)], warnings: [] }
   }
 
   return { errors: [`HTTP ${res.status}: ${res.statusText}`], warnings: [] }
