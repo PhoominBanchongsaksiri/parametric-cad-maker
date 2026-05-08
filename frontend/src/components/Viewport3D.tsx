@@ -5,6 +5,8 @@ import { useProjectStore } from '../state/projectStore'
 import { apiPreview } from '../api/client'
 import * as THREE from 'three'
 
+// ---- GLB model via Drei (blob URL) ----------------------------------------
+
 function GlbModel({ url }: { url: string }) {
   const { scene } = useGLTF(url)
   const cloned = scene.clone(true)
@@ -21,21 +23,25 @@ function GlbModel({ url }: { url: string }) {
   return <primitive object={cloned} />
 }
 
+// ---- STL fallback model (backend returns STL when GLTF unavailable) --------
+
 function StlFallbackModel({ url }: { url: string }) {
   const meshRef = useRef<THREE.Mesh>(null)
   useEffect(() => {
+    let cancelled = false
     import('three/addons/loaders/STLLoader.js').then(({ STLLoader }) => {
       const loader = new STLLoader()
       fetch(url)
         .then((r) => r.arrayBuffer())
         .then((buf) => {
+          if (cancelled) return
           const geo = loader.parse(buf)
           geo.computeVertexNormals()
-          if (meshRef.current) {
-            meshRef.current.geometry = geo
-          }
+          if (meshRef.current) meshRef.current.geometry = geo
         })
+        .catch(() => {/* silently ignore; overlay shows error */})
     })
+    return () => { cancelled = true }
   }, [url])
   return (
     <mesh ref={meshRef}>
@@ -43,6 +49,8 @@ function StlFallbackModel({ url }: { url: string }) {
     </mesh>
   )
 }
+
+// ---- Model switcher --------------------------------------------------------
 
 function ModelLoader({ url, isStl }: { url: string; isStl: boolean }) {
   if (isStl) return <StlFallbackModel url={url} />
@@ -53,24 +61,61 @@ function ModelLoader({ url, isStl }: { url: string; isStl: boolean }) {
   )
 }
 
-export function Viewport3D() {
-  const { glbUrl, previewLoading, previewError, project, setGlbUrl, setPreviewLoading, setPreviewError } =
-    useProjectStore()
+// ---- Scene -----------------------------------------------------------------
 
-  const isStl = glbUrl?.includes('stl') ?? false
+function Scene({ glbUrl }: { glbUrl: string | null }) {
+  return (
+    <>
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[100, 200, 100]} intensity={1.2} />
+      <directionalLight position={[-100, -50, -100]} intensity={0.3} />
+
+      <Grid
+        args={[400, 400]}
+        cellSize={10}
+        cellThickness={0.5}
+        cellColor="#2e333d"
+        sectionSize={50}
+        sectionThickness={1}
+        sectionColor="#3a4050"
+        fadeDistance={500}
+        fadeStrength={1}
+        position={[0, -0.5, 0]}
+      />
+
+      {glbUrl && (
+        <ModelLoader
+          url={glbUrl.replace('#stl', '')}
+          isStl={glbUrl.includes('#stl')}
+        />
+      )}
+
+      <OrbitControls makeDefault />
+      <GizmoHelper alignment="bottom-right" margin={[60, 60]}>
+        <GizmoViewport labelColor="white" axisHeadScale={1} />
+      </GizmoHelper>
+    </>
+  )
+}
+
+// ---- Viewport --------------------------------------------------------------
+
+export function Viewport3D() {
+  const {
+    glbUrl, previewLoading, previewError,
+    project, setGlbUrl, setPreviewLoading, setPreviewError,
+  } = useProjectStore()
 
   async function regenerate() {
     setPreviewLoading(true)
     setPreviewError(null)
-    if (glbUrl) URL.revokeObjectURL(glbUrl)
+    if (glbUrl) URL.revokeObjectURL(glbUrl.replace('#stl', ''))
     setGlbUrl(null)
     try {
       const blob = await apiPreview(project)
-      const contentType = blob.type
-      const ext = contentType.includes('gltf') ? 'glb' : 'stl'
-      const url = URL.createObjectURL(new Blob([blob], { type: contentType }))
-      // append ext hint so ModelLoader can branch
-      setGlbUrl(url + (ext === 'stl' ? '#stl' : ''))
+      const isGltf = blob.type.includes('gltf')
+      const url = URL.createObjectURL(blob)
+      setGlbUrl(url + (isGltf ? '' : '#stl'))
     } catch (e: unknown) {
       setPreviewError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -78,61 +123,31 @@ export function Viewport3D() {
     }
   }
 
-  // Auto-load on first mount
-  useEffect(() => {
-    regenerate()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  // Auto-preview on first mount
+  useEffect(() => { regenerate() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const showOverlay = previewLoading || previewError || !glbUrl
+  const showOverlay = previewLoading || !!previewError || !glbUrl
 
   return (
     <div className="viewport-wrap">
+      {/* Overlay: loading / error / empty state */}
       {showOverlay && (
         <div className="viewport-overlay">
-          <div className={`viewport-msg ${previewError ? 'err' : ''}`}>
-            {previewLoading && (
-              <>
-                <div className="spinner" />
-                Generating preview…
-              </>
-            )}
-            {!previewLoading && previewError && previewError}
+          <div className={`viewport-msg${previewError ? ' err' : ''}`}>
+            {previewLoading && <><div className="spinner" />Generating preview…</>}
+            {!previewLoading && previewError && <>⛔ {previewError}</>}
             {!previewLoading && !previewError && !glbUrl && 'Click Regenerate to load preview'}
           </div>
         </div>
       )}
 
+      {/* Canvas is always mounted so Three.js context is stable */}
       <Canvas
         camera={{ position: [150, 120, 150], fov: 45 }}
         gl={{ antialias: true }}
         style={{ background: '#0d0f12' }}
       >
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[100, 200, 100]} intensity={1.2} />
-        <directionalLight position={[-100, -50, -100]} intensity={0.3} />
-
-        <Grid
-          args={[400, 400]}
-          cellSize={10}
-          cellThickness={0.5}
-          cellColor="#2e333d"
-          sectionSize={50}
-          sectionThickness={1}
-          sectionColor="#3a4050"
-          fadeDistance={500}
-          fadeStrength={1}
-          position={[0, -0.5, 0]}
-        />
-
-        {glbUrl && (
-          <ModelLoader url={glbUrl.replace('#stl', '')} isStl={glbUrl.includes('#stl')} />
-        )}
-
-        <OrbitControls makeDefault />
-        <GizmoHelper alignment="bottom-right" margin={[60, 60]}>
-          <GizmoViewport labelColor="white" axisHeadScale={1} />
-        </GizmoHelper>
+        <Scene glbUrl={glbUrl} />
       </Canvas>
 
       <div style={{ position: 'absolute', bottom: 10, right: 10 }}>
