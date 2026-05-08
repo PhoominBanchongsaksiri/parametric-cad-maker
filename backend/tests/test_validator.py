@@ -50,7 +50,7 @@ def test_missing_rect_dims():
             "width": 60,
             "height": 40,
             "wall": 2,
-            "cutouts": [{"face": "top", "shape": "rect", "x": 0, "y": 0}],
+            "cutouts": [{"target": {"plane": "top", "u": 0, "v": 0}, "shape": "rect"}],
         }],
     )
     result = validate_project(proj, {})
@@ -70,9 +70,7 @@ def test_counterbore_warning():
             "height": 40,
             "wall": 2,
             "screw_holes": [{
-                "face": "top",
-                "x": 0,
-                "y": 0,
+                "target": {"plane": "top", "u": 0, "v": 0},
                 "diameter": 4,
                 "counterbore_diameter": 3,
             }],

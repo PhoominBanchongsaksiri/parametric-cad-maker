@@ -55,9 +55,9 @@ def _apply_cutout(
     env: dict[str, float],
     L: float, W: float, H: float, wall: float,
 ) -> cq.Workplane:
-    face = cut.face
-    cx = resolve_expr(cut.x, env)
-    cy = resolve_expr(cut.y, env)
+    face = cut.target.plane
+    cx = resolve_expr(cut.target.u, env)
+    cy = resolve_expr(cut.target.v, env)
     depth_val = resolve_expr(cut.depth, env) if cut.depth is not None else None
 
     wp = _pick_face(solid, face).workplane()
@@ -94,9 +94,9 @@ def _apply_boss(
     env: dict[str, float],
     L: float, W: float, H: float,
 ) -> cq.Workplane:
-    face = boss.face
-    bx = resolve_expr(boss.x, env)
-    by = resolve_expr(boss.y, env)
+    face = boss.target.plane
+    bx = resolve_expr(boss.target.u, env)
+    by = resolve_expr(boss.target.v, env)
     od = resolve_expr(boss.od, env)
     bh = resolve_expr(boss.height, env)
 
@@ -126,9 +126,9 @@ def _apply_screw_hole(
     env: dict[str, float],
     L: float, W: float, H: float, wall: float,
 ) -> cq.Workplane:
-    face = sh.face
-    sx = resolve_expr(sh.x, env)
-    sy = resolve_expr(sh.y, env)
+    face = sh.target.plane
+    sx = resolve_expr(sh.target.u, env)
+    sy = resolve_expr(sh.target.v, env)
     sd = resolve_expr(sh.diameter, env)
 
     _, _, face_wall = _face_dims(face, L, W, H, wall)

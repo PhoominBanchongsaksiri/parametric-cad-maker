@@ -1,6 +1,6 @@
 """Pydantic project schema for parametric CAD maker."""
 from __future__ import annotations
-from typing import Annotated, Any, Literal, Union
+from typing import Annotated, Literal, Union
 from pydantic import BaseModel, Field
 
 
@@ -9,33 +9,35 @@ class Parameter(BaseModel):
     value: float | str  # float or formula string
 
 
+class PlacementTarget(BaseModel):
+    """Identifies a face and a 2-D offset on that face."""
+    plane: Literal["top", "bottom", "front", "back", "left", "right"]
+    u: float | str = 0.0      # offset along the face's horizontal axis
+    v: float | str = 0.0      # offset along the face's vertical axis
+    rotation: float | str = 0.0  # in-plane rotation in degrees (reserved)
+
+
 class CutoutSpec(BaseModel):
-    face: Literal["top", "bottom", "front", "back", "left", "right"]
+    target: PlacementTarget
     shape: Literal["rect", "circle", "slot"]
-    x: float | str = 0.0
-    y: float | str = 0.0
-    width: float | str | None = None   # rect / slot
-    height: float | str | None = None  # rect / slot
-    diameter: float | str | None = None  # circle
-    slot_length: float | str | None = None  # slot (length along x)
-    depth: float | str | None = None  # None = through
+    width: float | str | None = None      # rect / slot
+    height: float | str | None = None     # rect / slot
+    diameter: float | str | None = None   # circle / slot end-cap
+    slot_length: float | str | None = None  # slot (length along u)
+    depth: float | str | None = None      # None = through-wall
 
 
 class BossSpec(BaseModel):
-    x: float | str
-    y: float | str
-    face: Literal["top", "bottom"] = "top"
-    od: float | str  # outer diameter
+    target: PlacementTarget               # plane must be "top" or "bottom"
+    od: float | str                       # outer diameter
     height: float | str
     hole_diameter: float | str | None = None
 
 
 class ScrewHoleSpec(BaseModel):
-    x: float | str
-    y: float | str
-    face: Literal["top", "bottom", "front", "back", "left", "right"] = "top"
+    target: PlacementTarget
     diameter: float | str
-    depth: float | str | None = None  # None = through
+    depth: float | str | None = None      # None = through-wall
     counterbore_diameter: float | str | None = None
     counterbore_depth: float | str | None = None
     countersink_diameter: float | str | None = None

@@ -50,7 +50,7 @@ def test_rect_cutout_reduces_volume():
         features=[{
             "type": "enclosure", "id": "body",
             "length": 100, "width": 60, "height": 40, "wall": 2,
-            "cutouts": [{"face": "front", "shape": "rect", "x": 0, "y": 0, "width": 20, "height": 10}],
+            "cutouts": [{"target": {"plane": "front", "u": 0, "v": 0}, "shape": "rect", "width": 20, "height": 10}],
         }],
     )
     env = {}
@@ -65,7 +65,7 @@ def test_circle_cutout_reduces_volume():
         features=[{
             "type": "enclosure", "id": "body",
             "length": 100, "width": 60, "height": 40, "wall": 2,
-            "cutouts": [{"face": "right", "shape": "circle", "x": 0, "y": 0, "diameter": 10}],
+            "cutouts": [{"target": {"plane": "right", "u": 0, "v": 0}, "shape": "circle", "diameter": 10}],
         }],
     )
     proj_no = _enc_project()
@@ -80,7 +80,7 @@ def test_slot_cutout_reduces_volume():
         features=[{
             "type": "enclosure", "id": "body",
             "length": 100, "width": 60, "height": 40, "wall": 2,
-            "cutouts": [{"face": "top", "shape": "slot", "x": 0, "y": 0, "slot_length": 20, "diameter": 6}],
+            "cutouts": [{"target": {"plane": "top", "u": 0, "v": 0}, "shape": "slot", "slot_length": 20, "diameter": 6}],
         }],
     )
     proj_no = _enc_project()
@@ -95,7 +95,7 @@ def test_boss_increases_volume():
         features=[{
             "type": "enclosure", "id": "body",
             "length": 100, "width": 60, "height": 40, "wall": 2,
-            "bosses": [{"face": "bottom", "x": 0, "y": 0, "od": 8, "height": 5}],
+            "bosses": [{"target": {"plane": "bottom", "u": 0, "v": 0}, "od": 8, "height": 5}],
         }],
     )
     proj_no = _enc_project()
@@ -110,7 +110,7 @@ def test_boss_with_hole():
         features=[{
             "type": "enclosure", "id": "body",
             "length": 100, "width": 60, "height": 40, "wall": 2,
-            "bosses": [{"face": "bottom", "x": 0, "y": 0, "od": 8, "height": 5, "hole_diameter": 3}],
+            "bosses": [{"target": {"plane": "bottom", "u": 0, "v": 0}, "od": 8, "height": 5, "hole_diameter": 3}],
         }],
     )
     proj_no_hole = Project(
@@ -118,7 +118,7 @@ def test_boss_with_hole():
         features=[{
             "type": "enclosure", "id": "body",
             "length": 100, "width": 60, "height": 40, "wall": 2,
-            "bosses": [{"face": "bottom", "x": 0, "y": 0, "od": 8, "height": 5}],
+            "bosses": [{"target": {"plane": "bottom", "u": 0, "v": 0}, "od": 8, "height": 5}],
         }],
     )
     vol_hole = build_feature(proj.features[0], {}).val().Volume()
@@ -132,7 +132,7 @@ def test_screw_hole_reduces_volume():
         features=[{
             "type": "enclosure", "id": "body",
             "length": 100, "width": 60, "height": 40, "wall": 2,
-            "screw_holes": [{"face": "top", "x": 10, "y": 10, "diameter": 3}],
+            "screw_holes": [{"target": {"plane": "top", "u": 10, "v": 10}, "diameter": 3}],
         }],
     )
     vol_no = _enc_project().features[0]
@@ -147,7 +147,7 @@ def test_counterbore_reduces_more():
         features=[{
             "type": "enclosure", "id": "body",
             "length": 100, "width": 60, "height": 40, "wall": 2,
-            "screw_holes": [{"face": "top", "x": 10, "y": 10, "diameter": 3}],
+            "screw_holes": [{"target": {"plane": "top", "u": 10, "v": 10}, "diameter": 3}],
         }],
     )
     proj_cb = Project(
@@ -156,8 +156,10 @@ def test_counterbore_reduces_more():
             "type": "enclosure", "id": "body",
             "length": 100, "width": 60, "height": 40, "wall": 2,
             "screw_holes": [{
-                "face": "top", "x": 10, "y": 10, "diameter": 3,
-                "counterbore_diameter": 6, "counterbore_depth": 1.5,
+                "target": {"plane": "top", "u": 10, "v": 10},
+                "diameter": 3,
+                "counterbore_diameter": 6,
+                "counterbore_depth": 1.5,
             }],
         }],
     )
