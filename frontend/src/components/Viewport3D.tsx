@@ -1,9 +1,38 @@
-import { Suspense, useEffect, useRef } from 'react'
+import { Component, Suspense, useEffect, useRef } from 'react'
+import type { ErrorInfo, ReactNode } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport, useGLTF } from '@react-three/drei'
 import { useProjectStore } from '../state/projectStore'
 import { apiPreview } from '../api/client'
 import * as THREE from 'three'
+
+// ---- Error boundary (prevents Canvas crash from taking down the whole app) --
+
+interface EBState { error: string | null }
+
+class CanvasErrorBoundary extends Component<{ children: ReactNode }, EBState> {
+  state: EBState = { error: null }
+
+  static getDerivedStateFromError(err: unknown): EBState {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { error: msg }
+  }
+
+  componentDidCatch(_err: unknown, _info: ErrorInfo) {
+    // error already captured in state
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="viewport-overlay">
+          <div className="viewport-msg err">⛔ Render error: {this.state.error}</div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 // ---- GLB model via Drei (blob URL) ----------------------------------------
 
@@ -23,9 +52,9 @@ function GlbModel({ url }: { url: string }) {
   return <primitive object={cloned} />
 }
 
-// ---- STL fallback model (backend returns STL when GLTF unavailable) --------
+// ---- STL model -------------------------------------------------------------
 
-function StlFallbackModel({ url }: { url: string }) {
+function StlModel({ url }: { url: string }) {
   const meshRef = useRef<THREE.Mesh>(null)
   useEffect(() => {
     let cancelled = false
@@ -53,7 +82,7 @@ function StlFallbackModel({ url }: { url: string }) {
 // ---- Model switcher --------------------------------------------------------
 
 function ModelLoader({ url, isStl }: { url: string; isStl: boolean }) {
-  if (isStl) return <StlFallbackModel url={url} />
+  if (isStl) return <StlModel url={url} />
   return (
     <Suspense fallback={null}>
       <GlbModel url={url} />
@@ -98,6 +127,20 @@ function Scene({ glbUrl }: { glbUrl: string | null }) {
   )
 }
 
+// ---- Detect format from blob -----------------------------------------------
+// GLB magic: first 4 bytes are ASCII "glTF" (0x676c5446).
+// Fall back to content-type if bytes are not readable.
+
+async function isGlbBlob(blob: Blob): Promise<boolean> {
+  try {
+    const header = await blob.slice(0, 4).arrayBuffer()
+    const magic = new Uint8Array(header)
+    return magic[0] === 0x67 && magic[1] === 0x6c && magic[2] === 0x54 && magic[3] === 0x46
+  } catch {
+    return blob.type.includes('gltf')
+  }
+}
+
 // ---- Viewport --------------------------------------------------------------
 
 export function Viewport3D() {
@@ -113,9 +156,9 @@ export function Viewport3D() {
     setGlbUrl(null)
     try {
       const blob = await apiPreview(project)
-      const isGltf = blob.type.includes('gltf')
+      const isGlb = await isGlbBlob(blob)
       const url = URL.createObjectURL(blob)
-      setGlbUrl(url + (isGltf ? '' : '#stl'))
+      setGlbUrl(url + (isGlb ? '' : '#stl'))
     } catch (e: unknown) {
       setPreviewError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -141,14 +184,16 @@ export function Viewport3D() {
         </div>
       )}
 
-      {/* Canvas is always mounted so Three.js context is stable */}
-      <Canvas
-        camera={{ position: [150, 120, 150], fov: 45 }}
-        gl={{ antialias: true }}
-        style={{ background: '#0d0f12' }}
-      >
-        <Scene glbUrl={glbUrl} />
-      </Canvas>
+      {/* Canvas wrapped in error boundary so a render failure shows an overlay, not a black screen */}
+      <CanvasErrorBoundary>
+        <Canvas
+          camera={{ position: [150, 120, 150], fov: 45 }}
+          gl={{ antialias: true }}
+          style={{ background: '#0d0f12' }}
+        >
+          <Scene glbUrl={glbUrl} />
+        </Canvas>
+      </CanvasErrorBoundary>
 
       <div style={{ position: 'absolute', bottom: 10, right: 10 }}>
         <button className="btn-primary" onClick={regenerate} disabled={previewLoading}>
