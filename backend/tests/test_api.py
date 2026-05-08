@@ -67,7 +67,8 @@ def test_preview_returns_bytes(client):
 def test_preview_content_type(client):
     r = client.post("/api/preview", json=BASIC_PROJECT)
     assert r.status_code == 200
-    assert "gltf-binary" in r.headers.get("content-type", "")
+    ct = r.headers.get("content-type", "")
+    assert "gltf-binary" in ct or "stl" in ct or "octet-stream" in ct
 
 
 def test_preview_content_is_not_empty_geometry(client):

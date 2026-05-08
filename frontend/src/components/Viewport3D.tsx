@@ -1,6 +1,7 @@
 import { Component, Suspense, useEffect, useRef } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useThree } from '@react-three/fiber'
+
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport, useGLTF } from '@react-three/drei'
 import { useProjectStore } from '../state/projectStore'
 import { apiPreview } from '../api/client'
@@ -56,6 +57,8 @@ function GlbModel({ url }: { url: string }) {
 
 function StlModel({ url }: { url: string }) {
   const meshRef = useRef<THREE.Mesh>(null)
+  const { camera } = useThree()
+
   useEffect(() => {
     let cancelled = false
     import('three/addons/loaders/STLLoader.js').then(({ STLLoader }) => {
@@ -63,15 +66,34 @@ function StlModel({ url }: { url: string }) {
       fetch(url)
         .then((r) => r.arrayBuffer())
         .then((buf) => {
-          if (cancelled) return
+          if (cancelled || !meshRef.current) return
           const geo = loader.parse(buf)
           geo.computeVertexNormals()
-          if (meshRef.current) meshRef.current.geometry = geo
+
+          // Center geometry at origin
+          geo.computeBoundingBox()
+          if (geo.boundingBox) {
+            const c = new THREE.Vector3()
+            geo.boundingBox.getCenter(c)
+            geo.translate(-c.x, -c.y, -c.z)
+
+            // Fit camera distance to model size
+            const size = new THREE.Vector3()
+            geo.boundingBox.getSize(size)
+            const radius = Math.max(size.x, size.y, size.z)
+            const fov = ((camera as THREE.PerspectiveCamera).fov ?? 45) * (Math.PI / 180)
+            const dist = (radius / Math.tan(fov / 2)) * 1.2
+            camera.position.set(dist, dist * 0.65, dist)
+            camera.lookAt(0, 0, 0)
+          }
+
+          meshRef.current.geometry = geo
         })
         .catch(() => {/* silently ignore; overlay shows error */})
     })
     return () => { cancelled = true }
-  }, [url])
+  }, [url, camera])
+
   return (
     <mesh ref={meshRef}>
       <meshStandardMaterial color="#4f8ef7" metalness={0.25} roughness={0.6} />

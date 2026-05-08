@@ -1,10 +1,10 @@
 {
   "name": "Basic Enclosure",
   "parameters": [
-    {"name": "L",    "value": 100},
-    {"name": "W",    "value": 60},
-    {"name": "H",    "value": 40},
-    {"name": "wall", "value": 2},
+    {"name": "L",       "value": 100},
+    {"name": "W",       "value": 60},
+    {"name": "H",       "value": 40},
+    {"name": "wall",    "value": 2},
     {"name": "screw_d", "value": 3},
     {"name": "boss_od", "value": 8},
     {"name": "boss_h",  "value": 6}
@@ -12,61 +12,41 @@
   "features": [
     {
       "type": "enclosure",
-      "id": "body",
+      "id":     "body",
       "length": "L",
       "width":  "W",
       "height": "H",
       "wall":   "wall",
       "cutouts": [
         {
-          "face": "front",
-          "shape": "rect",
-          "x": 0,
-          "y": 0,
-          "width": 20,
-          "height": 15
+          "face": "front", "shape": "rect",
+          "x": 0, "y": 0, "width": 40, "height": 20
         },
         {
-          "face": "right",
-          "shape": "circle",
-          "x": 0,
-          "y": 0,
-          "diameter": 10
+          "face": "right", "shape": "circle",
+          "x": 0, "y": 0, "diameter": 12
         },
         {
-          "face": "top",
-          "shape": "slot",
-          "x": 0,
-          "y": 0,
-          "slot_length": 30,
-          "diameter": 6
+          "face": "top", "shape": "slot",
+          "x": 0, "y": 0, "slot_length": 40, "diameter": 6
         }
       ],
       "bosses": [
         {
           "face": "bottom",
-          "x": "L/2 - 10",
-          "y": "W/2 - 10",
-          "od": "boss_od",
-          "height": "boss_h",
+          "x": "L/2 - 10", "y": "W/2 - 10",
+          "od": "boss_od", "height": "boss_h",
           "hole_diameter": 3
         }
       ],
+      "boss_patterns": [],
       "screw_holes": [
         {
           "face": "top",
-          "x": "L/2 - 8",
-          "y": "W/2 - 8",
+          "x": "L/2 - 8", "y": "W/2 - 8",
           "diameter": "screw_d",
           "counterbore_diameter": 6,
           "counterbore_depth": 2
-        },
-        {
-          "face": "front",
-          "x": 0,
-          "y": 0,
-          "diameter": "screw_d",
-          "countersink_diameter": 6
         }
       ]
     }

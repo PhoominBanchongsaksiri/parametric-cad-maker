@@ -89,6 +89,7 @@ def _apply_boss(
     boss: BossSpec,
     env: dict[str, float],
     L: float, W: float, H: float,
+    wall: float = 0.0,
 ) -> cq.Workplane:
     face = boss.face
     bx = resolve_expr(boss.x, env)
@@ -96,18 +97,16 @@ def _apply_boss(
     od = resolve_expr(boss.od, env)
     bh = resolve_expr(boss.height, env)
 
-    wp = solid.faces(_face_selector(face)).workplane().center(bx, by)
-    solid = wp.circle(od / 2).extrude(bh)
+    entry, axis = _FACE_ENTRY[face](bx, by, L, W, H)
+
+    # Boss cylinder: enters from outer face and extends wall + boss_height inward.
+    # The portion inside the wall (0..wall) merges with existing solid material;
+    # the remainder (wall..wall+bh) is the boss protrusion inside the cavity.
+    solid = solid.union(_cyl_cutter(entry, axis, od / 2, wall + bh))
 
     if boss.hole_diameter is not None:
         hd = resolve_expr(boss.hole_diameter, env)
-        solid = (
-            solid.faces(_face_selector(face))
-            .workplane()
-            .center(bx, by)
-            .circle(hd / 2)
-            .cutBlind(-bh)
-        )
+        solid = solid.cut(_cyl_cutter(entry, axis, hd / 2, wall + bh))
 
     return solid
 
@@ -204,6 +203,7 @@ def _apply_boss_pattern(
     bp: BossPatternSpec,
     env: dict[str, float],
     L: float, W: float, H: float,
+    wall: float = 0.0,
 ) -> cq.Workplane:
     x0 = resolve_expr(bp.x0, env)
     y0 = resolve_expr(bp.y0, env)
@@ -219,7 +219,7 @@ def _apply_boss_pattern(
                 height=bp.height,
                 hole_diameter=bp.hole_diameter,
             )
-            solid = _apply_boss(solid, boss, env, L, W, H)
+            solid = _apply_boss(solid, boss, env, L, W, H, wall)
     return solid
 
 
@@ -242,10 +242,10 @@ def _build_enclosure(feat: EnclosureFeature, env: dict[str, float]) -> cq.Workpl
         solid = _apply_cutout(solid, cut, env, L, W, H, wall)
 
     for boss in feat.bosses:
-        solid = _apply_boss(solid, boss, env, L, W, H)
+        solid = _apply_boss(solid, boss, env, L, W, H, wall)
 
     for bp in feat.boss_patterns:
-        solid = _apply_boss_pattern(solid, bp, env, L, W, H)
+        solid = _apply_boss_pattern(solid, bp, env, L, W, H, wall)
 
     for sh in feat.screw_holes:
         solid = _apply_screw_hole(solid, sh, env, L, W, H, wall)
