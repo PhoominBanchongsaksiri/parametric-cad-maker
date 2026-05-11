@@ -1,0 +1,62 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Backend: Setup venv",
+      "type": "shell",
+      "command": "python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Backend: Run",
+      "type": "shell",
+      "command": "source .venv/bin/activate && uvicorn app.main:app --reload",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": "test",
+      "isBackground": true,
+      "presentation": { "reveal": "always", "panel": "dedicated", "label": "Backend" },
+      "problemMatcher": {
+        "pattern": { "regexp": "." },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "INFO.*Uvicorn running",
+          "endsPattern": "INFO.*Application startup complete"
+        }
+      }
+    },
+    {
+      "label": "Frontend: Install",
+      "type": "shell",
+      "command": "npm install",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "new" }
+    },
+    {
+      "label": "Frontend: Run",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "group": "test",
+      "isBackground": true,
+      "presentation": { "reveal": "always", "panel": "dedicated", "label": "Frontend" },
+      "problemMatcher": {
+        "pattern": { "regexp": "." },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "VITE",
+          "endsPattern": "Local:.*localhost"
+        }
+      }
+    },
+    {
+      "label": "Run All (Backend + Frontend)",
+      "dependsOrder": "parallel",
+      "dependsOn": ["Backend: Run", "Frontend: Run"],
+      "group": { "kind": "test", "isDefault": true },
+      "presentation": { "reveal": "always" }
+    }
+  ]
+}
