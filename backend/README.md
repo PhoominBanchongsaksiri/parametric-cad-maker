@@ -4,22 +4,35 @@ Python/FastAPI service. All geometry is generated here using CadQuery/OpenCascad
 
 ## Responsibilities
 
-- Accept project JSON via POST `/api/preview` and POST `/api/export`
-- Resolve parameters and formulas
-- Build solids with CadQuery
-- Return GLB for preview; STEP/STL/3MF for export
+- Accept typed project JSON through `/api/validate`, `/api/preview`, and `/api/export/{fmt}`
+- Resolve safe parameter expressions such as `L / 2 - 10`
+- Validate IDs, targets, dimensions, planes, depths, walls, and patterns before building geometry
+- Build primitives, booleans, cutouts, holes, screw holes, bosses, and patterns with CadQuery
+- Return GLB preview bytes and STEP/STL/GLB exports
 
-## Rules
+## Export Policy
 
-- Backend owns all geometry. No geometry is ever created in the frontend.
-- STEP/STL/3MF/GLB always come from here, never from the Three.js scene.
+Supported exports are:
 
-## Setup (to be completed in Phase 2)
+- `step`
+- `stl`
+- `glb`
+
+3MF is not exposed because CadQuery does not provide a real 3MF exporter in this project. The API must not return AMF data with a `.3mf` filename.
+
+## Setup
 
 ```bash
 cd backend
 python -m venv .venv
-source .venv/bin/activate
+.venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload
+```
+
+## Tests
+
+```bash
+cd backend
+pytest
 ```

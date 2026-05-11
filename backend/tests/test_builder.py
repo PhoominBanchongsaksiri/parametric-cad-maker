@@ -224,3 +224,149 @@ def test_formula_parameters_in_builder():
     wp = build_feature(proj.features[0], env)
     bb = wp.val().BoundingBox()
     assert bb.xlen == pytest.approx(40, abs=0.01)
+
+
+def test_multiple_primitives_boolean_cut():
+    proj = Project(
+        name="t",
+        parameters=[],
+        features=[
+            {"type": "box", "id": "body", "length": 20, "width": 20, "height": 20},
+            {"type": "cylinder", "id": "cutter", "target": "body", "operation": "cut", "diameter": 8, "height": 30},
+        ],
+    )
+    solid = build_all(proj, {})[0][1]
+    assert solid.val().Volume() < 20 * 20 * 20
+
+
+@pytest.mark.parametrize("shape", ["rounded_box", "cone", "torus", "wedge", "capsule", "polygon_prism", "extrude", "revolve"])
+def test_advanced_primitives_build(shape):
+    feature_by_shape = {
+        "rounded_box": {"type": "rounded_box", "id": "f", "length": 20, "width": 10, "height": 8, "fillet_radius": 1},
+        "cone": {"type": "cone", "id": "f", "height": 10, "radius1": 5, "radius2": 2},
+        "torus": {"type": "torus", "id": "f", "major_radius": 10, "minor_radius": 2},
+        "wedge": {"type": "wedge", "id": "f", "length": 20, "width": 10, "height": 8, "top_length": 4},
+        "capsule": {"type": "capsule", "id": "f", "length": 30, "diameter": 8},
+        "polygon_prism": {
+            "type": "polygon_prism",
+            "id": "f",
+            "height": 5,
+            "points": [{"x": 0, "y": 0}, {"x": 10, "y": 0}, {"x": 5, "y": 8}],
+        },
+        "extrude": {
+            "type": "extrude",
+            "id": "f",
+            "height": 5,
+            "profile": [{"x": 0, "y": 0}, {"x": 10, "y": 0}, {"x": 10, "y": 5}, {"x": 0, "y": 5}],
+        },
+        "revolve": {
+            "type": "revolve",
+            "id": "f",
+            "angle": 360,
+            "profile": [{"x": 2, "y": 0}, {"x": 5, "y": 0}, {"x": 5, "y": 8}, {"x": 2, "y": 8}],
+        },
+    }
+    proj = Project(name="t", parameters=[], features=[feature_by_shape[shape]])
+    wp = build_feature(proj.features[0], {})
+    assert wp.val().Volume() > 0
+
+
+@pytest.mark.parametrize("face", ["top", "bottom", "front", "back", "left", "right"])
+def test_hole_feature_on_all_six_faces(face):
+    proj = Project(
+        name="t",
+        parameters=[],
+        features=[
+            {"type": "box", "id": "body", "length": 40, "width": 30, "height": 20},
+            {
+                "type": "hole",
+                "id": f"hole_{face}",
+                "target": "body",
+                "placement": {"face": face, "u": 0, "v": 0},
+                "diameter": 4,
+            },
+        ],
+    )
+    cut = build_all(proj, {})[0][1]
+    assert cut.val().Volume() < 40 * 30 * 20
+
+
+def test_usb_c_cutout_reduces_volume():
+    proj = Project(
+        name="t",
+        parameters=[],
+        features=[
+            {"type": "box", "id": "body", "length": 50, "width": 30, "height": 20},
+            {
+                "type": "cutout",
+                "id": "usb_c",
+                "target": "body",
+                "shape": "usb_c",
+                "placement": {"face": "front", "u": 0, "v": 0},
+                "depth": 5,
+                "through": False,
+            },
+        ],
+    )
+    cut = build_all(proj, {})[0][1]
+    assert cut.val().Volume() < 50 * 30 * 20
+
+
+def test_grid_pattern_cuts_multiple_holes():
+    base = Project(
+        name="base",
+        parameters=[],
+        features=[
+            {"type": "box", "id": "body", "length": 60, "width": 40, "height": 10},
+            {
+                "type": "hole",
+                "id": "one_hole",
+                "target": "body",
+                "placement": {"face": "top", "u": 0, "v": 0},
+                "diameter": 3,
+            },
+        ],
+    )
+    grid = Project(
+        name="grid",
+        parameters=[],
+        features=[
+            {"type": "box", "id": "body", "length": 60, "width": 40, "height": 10},
+            {
+                "type": "hole",
+                "id": "vent_grid",
+                "target": "body",
+                "placement": {"face": "top", "u": 0, "v": 0},
+                "diameter": 3,
+                "pattern": {"type": "grid", "rows": 3, "columns": 4, "row_spacing": 8, "column_spacing": 8},
+            },
+        ],
+    )
+    assert build_all(grid, {})[0][1].val().Volume() < build_all(base, {})[0][1].val().Volume()
+
+
+def test_custom_plane_cutout_reduces_volume():
+    proj = Project(
+        name="t",
+        parameters=[],
+        features=[
+            {"type": "box", "id": "body", "length": 40, "width": 30, "height": 20},
+            {
+                "type": "cutout",
+                "id": "plane_cut",
+                "target": "body",
+                "shape": "circle",
+                "placement": {
+                    "plane": {
+                        "origin": {"x": 0, "y": 0, "z": 10},
+                        "normal": {"x": 0, "y": 0, "z": 1},
+                        "x_dir": {"x": 1, "y": 0, "z": 0}
+                    },
+                    "u": 0,
+                    "v": 0
+                },
+                "diameter": 5,
+            },
+        ],
+    )
+    assert build_all(proj, {})[0][1].val().Volume() < 40 * 30 * 20

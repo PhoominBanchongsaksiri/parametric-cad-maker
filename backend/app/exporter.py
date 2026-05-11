@@ -1,4 +1,4 @@
-"""Export solids to STEP, STL, 3MF, and GLB (preview). All via file paths."""
+"""Export solids to STEP, STL, and GLB (preview). All via file paths."""
 from __future__ import annotations
 import os
 import tempfile
@@ -26,20 +26,12 @@ def to_stl(wp: cq.Workplane) -> bytes:
     return _with_tempfile(".stl", wp, exporters.ExportTypes.STL)
 
 
-def to_3mf(wp: cq.Workplane) -> bytes:
-    # CadQuery 2.7 does not have a 3MF exporter; fall back to AMF
-    try:
-        return _with_tempfile(".3mf", wp, exporters.ExportTypes.AMF)
-    except AttributeError:
-        return _with_tempfile(".amf", wp, exporters.ExportTypes.AMF)
-
-
 def to_glb(wp: cq.Workplane) -> bytes:
-    """Export to GLB. Falls back to STL if GLTF exporter is unavailable."""
+    """Export to GLB/GLTF bytes when supported by CadQuery."""
     try:
         return _with_tempfile(".glb", wp, exporters.ExportTypes.GLTF)
     except AttributeError:
-        return to_stl(wp)
+        raise RuntimeError("GLB/GLTF export is not supported by this CadQuery installation")
 
 
 def merge_workplanes(wps: list[cq.Workplane]) -> cq.Workplane:

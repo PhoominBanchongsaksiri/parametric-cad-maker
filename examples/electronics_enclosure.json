@@ -1,0 +1,42 @@
+{
+  "name": "Electronics Enclosure",
+  "parameters": [
+    {"name": "L", "value": 110},
+    {"name": "W", "value": 70},
+    {"name": "H", "value": 32},
+    {"name": "wall", "value": 2},
+    {"name": "boss_od", "value": 8},
+    {"name": "screw_d", "value": 3}
+  ],
+  "features": [
+    {
+      "type": "enclosure",
+      "id": "shell",
+      "length": "L",
+      "width": "W",
+      "height": "H",
+      "wall": "wall",
+      "fillet_radius": 2
+    },
+    {
+      "type": "boss",
+      "id": "mounting_bosses",
+      "target": "shell",
+      "placement": {"face": "bottom", "u": "L/2 - 14", "v": "W/2 - 14"},
+      "outer_diameter": "boss_od",
+      "inner_hole_diameter": "screw_d",
+      "height": 7,
+      "pattern": {"type": "mirror", "axis": "x"}
+    },
+    {
+      "type": "boss",
+      "id": "mounting_bosses_other_side",
+      "target": "shell",
+      "placement": {"face": "bottom", "u": "-L/2 + 14", "v": "W/2 - 14"},
+      "outer_diameter": "boss_od",
+      "inner_hole_diameter": "screw_d",
+      "height": 7,
+      "pattern": {"type": "mirror", "axis": "x"}
+    }
+  ]
+}

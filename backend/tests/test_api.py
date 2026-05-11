@@ -76,6 +76,18 @@ def test_export_stl(client):
     assert len(r.content) > 0
 
 
+def test_export_glb(client):
+    r = client.post("/api/export/glb", json=BASIC_PROJECT)
+    assert r.status_code in (200, 501)
+    if r.status_code == 200:
+        assert len(r.content) > 0
+
+
+def test_export_3mf_not_faked(client):
+    r = client.post("/api/export/3mf", json=BASIC_PROJECT)
+    assert r.status_code in (400, 404, 405, 422)
+
+
 def test_export_bad_format(client):
     r = client.post("/api/export/obj", json=BASIC_PROJECT)
     assert r.status_code in (400, 404, 405, 422)

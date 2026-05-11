@@ -1,0 +1,10 @@
+{
+  "name": "Multiple Primitive Shapes",
+  "parameters": [],
+  "features": [
+    {"type": "box", "id": "base", "length": 70, "width": 40, "height": 8, "fillet_radius": 1},
+    {"type": "cylinder", "id": "post", "target": "base", "operation": "union", "diameter": 14, "height": 28, "position": {"x": -20, "y": 0, "z": 18}},
+    {"type": "sphere", "id": "dome", "target": "base", "operation": "union", "diameter": 18, "position": {"x": 20, "y": 0, "z": 10}},
+    {"type": "cone", "id": "taper_cut", "target": "base", "operation": "cut", "radius1": 5, "radius2": 2, "height": 16, "position": {"x": 0, "y": 0, "z": 4}}
+  ]
+}

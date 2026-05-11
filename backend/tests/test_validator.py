@@ -29,14 +29,14 @@ def test_zero_dimension():
     proj = _make_enc(length=0)
     result = validate_project(proj, build_env(proj.parameters))
     assert not result.ok
-    assert any("positive" in e for e in result.errors)
+    assert any("greater than zero" in e for e in result.errors)
 
 
 def test_wall_too_thick():
     proj = _make_enc(length=10, width=10, height=10, wall=6)
     result = validate_project(proj, build_env(proj.parameters))
     assert not result.ok
-    assert any("wall too thick" in e for e in result.errors)
+    assert any("wall thickness too large" in e for e in result.errors)
 
 
 def test_missing_rect_dims():
@@ -55,10 +55,10 @@ def test_missing_rect_dims():
     )
     result = validate_project(proj, {})
     assert not result.ok
-    assert any("width and height" in e for e in result.errors)
+    assert any("width" in e for e in result.errors)
 
 
-def test_counterbore_warning():
+def test_counterbore_too_small_is_error():
     proj = Project(
         name="t",
         parameters=[],
@@ -79,4 +79,109 @@ def test_counterbore_warning():
         }],
     )
     result = validate_project(proj, {})
-    assert any("counterbore" in w for w in result.warnings)
+    assert not result.ok
+    assert any("counterbore" in e for e in result.errors)
+
+
+def test_duplicate_feature_ids():
+    proj = Project(
+        name="t",
+        parameters=[],
+        features=[
+            {"type": "box", "id": "body", "length": 10, "width": 10, "height": 5},
+            {"type": "cylinder", "id": "body", "diameter": 4, "height": 8},
+        ],
+    )
+    result = validate_project(proj, {})
+    assert not result.ok
+    assert any("duplicate" in e for e in result.errors)
+
+
+def test_invalid_target_body():
+    proj = Project(
+        name="t",
+        parameters=[],
+        features=[
+            {
+                "type": "hole",
+                "id": "hole1",
+                "target": "missing",
+                "placement": {"face": "top", "u": 0, "v": 0},
+                "diameter": 3,
+            }
+        ],
+    )
+    result = validate_project(proj, {})
+    assert not result.ok
+    assert any("invalid target body ID" in e for e in result.errors)
+
+
+def test_invalid_plane_definition():
+    proj = Project(
+        name="t",
+        parameters=[],
+        features=[
+            {"type": "box", "id": "body", "length": 20, "width": 20, "height": 10},
+            {
+                "type": "cutout",
+                "id": "bad_plane_cut",
+                "target": "body",
+                "shape": "circle",
+                "placement": {
+                    "plane": {
+                        "origin": {"x": 0, "y": 0, "z": 0},
+                        "normal": {"x": 0, "y": 0, "z": 0},
+                        "x_dir": {"x": 1, "y": 0, "z": 0}
+                    }
+                },
+                "diameter": 4,
+            }
+        ],
+    )
+    result = validate_project(proj, {})
+    assert not result.ok
+    assert any("normal vector" in e for e in result.errors)
+
+
+def test_hole_larger_than_body_face():
+    proj = Project(
+        name="t",
+        parameters=[],
+        features=[
+            {"type": "box", "id": "body", "length": 20, "width": 20, "height": 10},
+            {
+                "type": "hole",
+                "id": "huge_hole",
+                "target": "body",
+                "placement": {"face": "top", "u": 0, "v": 0},
+                "diameter": 40,
+            },
+        ],
+    )
+    result = validate_project(proj, {})
+    assert not result.ok
+    assert any("larger than target face" in e for e in result.errors)
+
+
+def test_invalid_cut_depth():
+    proj = Project(
+        name="t",
+        parameters=[],
+        features=[
+            {"type": "box", "id": "body", "length": 20, "width": 20, "height": 10},
+            {
+                "type": "cutout",
+                "id": "deep_cut",
+                "target": "body",
+                "shape": "rect",
+                "placement": {"face": "top", "u": 0, "v": 0},
+                "width": 4,
+                "height": 4,
+                "depth": 20,
+                "through": False,
+            },
+        ],
+    )
+    result = validate_project(proj, {})
+    assert not result.ok
+    assert any("cut depth" in e for e in result.errors)

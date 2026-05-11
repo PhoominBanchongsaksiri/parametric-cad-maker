@@ -1,0 +1,34 @@
+{
+  "name": "Enclosure With Four Screw Holes",
+  "parameters": [
+    {"name": "L", "value": 100},
+    {"name": "W", "value": 60},
+    {"name": "H", "value": 24},
+    {"name": "wall", "value": 2},
+    {"name": "offset", "value": 10},
+    {"name": "screw_d", "value": 3.2}
+  ],
+  "features": [
+    {"type": "enclosure", "id": "shell", "length": "L", "width": "W", "height": "H", "wall": "wall"},
+    {
+      "type": "hole",
+      "id": "screw_holes_front",
+      "target": "shell",
+      "placement": {"face": "top", "u": "L/2 - offset", "v": "W/2 - offset"},
+      "diameter": "screw_d",
+      "counterbore_diameter": 6,
+      "counterbore_depth": 2,
+      "pattern": {"type": "mirror", "axis": "x"}
+    },
+    {
+      "type": "hole",
+      "id": "screw_holes_back",
+      "target": "shell",
+      "placement": {"face": "top", "u": "-L/2 + offset", "v": "W/2 - offset"},
+      "diameter": "screw_d",
+      "counterbore_diameter": 6,
+      "counterbore_depth": 2,
+      "pattern": {"type": "mirror", "axis": "x"}
+    }
+  ]
+}

@@ -18,6 +18,9 @@ env/
 .pytest_cache/
 .coverage
 htmlcov/
+.tmp/
+pip_tmp/
+.python_deps*/
 
 # Node / frontend
 node_modules/
@@ -46,3 +49,6 @@ Thumbs.db
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Claude Code internals
+.claude/

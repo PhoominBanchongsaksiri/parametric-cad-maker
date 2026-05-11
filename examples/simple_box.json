@@ -1,0 +1,19 @@
+{
+  "name": "Simple Box",
+  "parameters": [
+    {"name": "L", "value": 80},
+    {"name": "W", "value": 50},
+    {"name": "H", "value": 25}
+  ],
+  "features": [
+    {
+      "type": "box",
+      "id": "body",
+      "length": "L",
+      "width": "W",
+      "height": "H",
+      "fillet_radius": 1.5,
+      "display": {"color": "#3b82f6", "material": "PLA"}
+    }
+  ]
+}

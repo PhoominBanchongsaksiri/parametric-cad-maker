@@ -1,0 +1,20 @@
+{
+  "name": "Enclosure With Ventilation Grid",
+  "parameters": [
+    {"name": "L", "value": 120},
+    {"name": "W", "value": 75},
+    {"name": "H", "value": 30},
+    {"name": "wall", "value": 2}
+  ],
+  "features": [
+    {"type": "enclosure", "id": "shell", "length": "L", "width": "W", "height": "H", "wall": "wall"},
+    {
+      "type": "hole",
+      "id": "top_vent_grid",
+      "target": "shell",
+      "placement": {"face": "top", "u": 0, "v": 0},
+      "diameter": 3,
+      "pattern": {"type": "grid", "rows": 4, "columns": 8, "row_spacing": 8, "column_spacing": 8}
+    }
+  ]
+}

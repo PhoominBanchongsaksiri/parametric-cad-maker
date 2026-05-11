@@ -1,0 +1,21 @@
+{
+  "name": "Enclosure With USB-C Port",
+  "parameters": [
+    {"name": "L", "value": 90},
+    {"name": "W", "value": 55},
+    {"name": "H", "value": 28},
+    {"name": "wall", "value": 2}
+  ],
+  "features": [
+    {"type": "enclosure", "id": "shell", "length": "L", "width": "W", "height": "H", "wall": "wall"},
+    {
+      "type": "cutout",
+      "id": "usb_c_port",
+      "target": "shell",
+      "shape": "usb_c",
+      "placement": {"face": "front", "u": 0, "v": 0},
+      "depth": "wall + 1",
+      "through": false
+    }
+  ]
+}
