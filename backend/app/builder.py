@@ -78,6 +78,31 @@ def _face_selector(face: str) -> cq.selectors.Selector:
     return cq.selectors.DirectionMinMaxSelector(cq.Vector(*_FACE_NORMAL[face]), directionMax=True)
 
 
+def _face_workplane(solid: cq.Workplane, face: str) -> cq.Workplane:
+    """Workplane for a named face whose origin is pinned to the bounding-box face-center.
+
+    Using the live topology origin is unreliable after prior features modify the face
+    (holes, pockets change the face centroid). The bounding-box center is stable for
+    any subtractive operation because the outer envelope doesn't shrink.
+    """
+    bb = solid.val().BoundingBox()
+    cx = (bb.xmin + bb.xmax) / 2
+    cy = (bb.ymin + bb.ymax) / 2
+    cz = (bb.zmin + bb.zmax) / 2
+    origin_of: dict[str, cq.Vector] = {
+        "top":    cq.Vector(cx, cy, bb.zmax),
+        "bottom": cq.Vector(cx, cy, bb.zmin),
+        "front":  cq.Vector(cx, bb.ymin, cz),
+        "back":   cq.Vector(cx, bb.ymax, cz),
+        "left":   cq.Vector(bb.xmin, cy, cz),
+        "right":  cq.Vector(bb.xmax, cy, cz),
+    }
+    raw = solid.faces(_face_selector(face)).workplane()
+    # Mutate plane origin only — keeps the parent-chain solid intact for cutBlind/extrude.
+    raw.plane = cq.Plane(origin=origin_of[face], xDir=raw.plane.xDir, normal=raw.plane.zDir)
+    return raw
+
+
 def _face_dims(face: str, length: float, width: float, height: float) -> tuple[float, float, float]:
     if face in ("top", "bottom"):
         return length, width, height
@@ -335,7 +360,7 @@ def _apply_cut_on_face(
     spec: Any,
     env: dict[str, float],
 ) -> cq.Workplane:
-    wp = solid.faces(_face_selector(face)).workplane().center(u, v)
+    wp = _face_workplane(solid, face).center(u, v)
     if rotation:
         wp = wp.transformed(rotate=(0, 0, rotation))
     return _draw_cut_profile(wp, shape, spec, env).cutBlind(-depth)
@@ -400,6 +425,34 @@ def _through_depth(solid: cq.Workplane) -> float:
     return max(bb.xlen, bb.ylen, bb.zlen) * 2 + 10.0
 
 
+def _apply_csk_cone(
+    solid: cq.Workplane,
+    placement,
+    u: float,
+    v: float,
+    hole_diameter: float,
+    csk_diameter: float,
+    csk_angle: float,
+    env: dict[str, float],
+) -> cq.Workplane:
+    half_angle = math.radians(csk_angle / 2)
+    tan_a = math.tan(half_angle)
+    if tan_a < 1e-6:
+        return solid
+    csk_r = csk_diameter / 2
+    hole_r = hole_diameter / 2
+    cone_depth = max((csk_r - hole_r) / tan_a, 0.01)
+    if placement.plane is not None:
+        wp = _workplane_from_plane(placement.plane, env).center(u, v)
+    else:
+        wp = _face_workplane(solid, placement.face or "top").center(u, v)
+    plane = wp.plane
+    origin = plane.origin
+    inward = -plane.zDir
+    cone = cq.Solid.makeCone(csk_r, hole_r, cone_depth, origin, inward)
+    return solid.cut(cq.Workplane("XY").add(cone))
+
+
 def _apply_hole_feature(solid: cq.Workplane, feat: HoleFeature | ScrewHoleFeature, env: dict[str, float]) -> cq.Workplane:
     as_cut = CutoutFeature(
         type="cutout",
@@ -425,23 +478,21 @@ def _apply_hole_feature(solid: cq.Workplane, feat: HoleFeature | ScrewHoleFeatur
                 shape="circle",
                 placement=placement.model_copy(update={"u": u, "v": v}),
                 diameter=feat.counterbore_diameter,
-                depth=feat.counterbore_depth or feat.diameter,
+                depth=feat.counterbore_depth if feat.counterbore_depth is not None else feat.diameter,
                 through=False,
             )
             solid = _apply_cutout_feature(solid, cb, env)
         if feat.countersink_diameter is not None:
-            # Metadata-aware approximation: conical cutting can be added later; this removes the clearance face.
-            cs = CutoutFeature(
-                type="cutout",
-                id=f"{feat.id}_countersink",
-                target=feat.target,
-                shape="circle",
-                placement=placement.model_copy(update={"u": u, "v": v}),
-                diameter=feat.countersink_diameter,
-                depth=max((_num(feat.countersink_diameter, env) - _num(feat.diameter, env)) / 2, 0.1),
-                through=False,
+            csk_angle = _num(feat.countersink_angle, env, 90.0) if feat.countersink_angle is not None else 90.0
+            solid = _apply_csk_cone(
+                solid,
+                placement.model_copy(update={"u": u, "v": v}),
+                u, v,
+                _num(feat.diameter, env),
+                _num(feat.countersink_diameter, env),
+                csk_angle,
+                env,
             )
-            solid = _apply_cutout_feature(solid, cs, env)
     return _apply_cutout_feature(solid, as_cut.model_copy(update={"depth": depth}), env)
 
 
@@ -455,7 +506,7 @@ def _apply_boss_on_face(
     env: dict[str, float],
     feat: Any,
 ) -> cq.Workplane:
-    wp = solid.faces(_face_selector(face)).workplane().center(u, v)
+    wp = _face_workplane(solid, face).center(u, v)
     boss = wp.circle(od / 2).extrude(height)
     fillet = _num(getattr(feat, "fillet_radius", None), env, 0.0)
     chamfer = _num(getattr(feat, "chamfer_size", None), env, 0.0)

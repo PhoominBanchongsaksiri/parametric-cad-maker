@@ -12,7 +12,6 @@ const FACES = ["top", "bottom", "front", "back", "left", "right", "custom"];
 
 const OPERATIONS = [
   ["cut",        "Cut"],
-  ["hole",       "Hole"],
   ["screw_hole", "Screw hole"],
   ["connector",  "Connector cutout"],
   ["boss",       "Boss / standoff"],
@@ -43,6 +42,13 @@ const SHAPES_SOLID = [
   ["rect",   "Box"],
 ];
 
+const CONNECTOR_DIMS = {
+  usb_c:   { width: 9.0,  height: 3.4, cornerRadius: 1.7 },
+  usb_a:   { width: 14.0, height: 6.5, cornerRadius: 0.5 },
+  hdmi:    { width: 14.0, height: 6.0, cornerRadius: 0.6 },
+  dc_jack: { diameter: 8.0 },
+};
+
 const DEPTH_MODES = [
   ["through",    "Through All"],
   ["blind",      "Blind"],
@@ -58,6 +64,57 @@ const PATTERNS = [
 ];
 
 const SCREW_SIZES = ["M1", "M1.2", "M1.6", "M2", "M2.5", "M3", "M4", "M5", "M6", "M8", "M10"];
+
+const OP_ICONS = {
+  cut:        "⊟",
+  screw_hole: "◎",
+  connector:  "▣",
+  boss:       "⬡",
+  add_solid:  "⬛",
+  hole:       "○",
+};
+
+// ISO M-series specs: clear_n/c/l=clearance normal/close/loose, cbore_d/h=counterbore, csk_d/a=countersink, tap_d=tap drill
+const SCREW_SPECS = {
+  M1:   { clear_n:1.2, clear_c:1.1, clear_l:1.3, cbore_d:2.5,  cbore_h:1.0,  csk_d:2.0,  csk_a:90, tap_d:0.75 },
+  M1_2: { clear_n:1.4, clear_c:1.3, clear_l:1.6, cbore_d:3.0,  cbore_h:1.2,  csk_d:2.4,  csk_a:90, tap_d:0.95 },
+  M1_6: { clear_n:1.8, clear_c:1.7, clear_l:2.0, cbore_d:3.5,  cbore_h:1.6,  csk_d:3.0,  csk_a:90, tap_d:1.25 },
+  M2:   { clear_n:2.4, clear_c:2.2, clear_l:2.6, cbore_d:4.4,  cbore_h:2.0,  csk_d:3.8,  csk_a:90, tap_d:1.6  },
+  M2_5: { clear_n:2.9, clear_c:2.7, clear_l:3.1, cbore_d:5.4,  cbore_h:2.5,  csk_d:4.7,  csk_a:90, tap_d:2.05 },
+  M3:   { clear_n:3.4, clear_c:3.2, clear_l:3.6, cbore_d:6.0,  cbore_h:3.0,  csk_d:5.5,  csk_a:90, tap_d:2.5  },
+  M4:   { clear_n:4.5, clear_c:4.3, clear_l:4.8, cbore_d:8.0,  cbore_h:4.0,  csk_d:7.4,  csk_a:90, tap_d:3.3  },
+  M5:   { clear_n:5.5, clear_c:5.3, clear_l:5.8, cbore_d:10.0, cbore_h:5.0,  csk_d:9.2,  csk_a:90, tap_d:4.2  },
+  M6:   { clear_n:6.6, clear_c:6.4, clear_l:7.0, cbore_d:11.0, cbore_h:6.0,  csk_d:11.0, csk_a:90, tap_d:5.0  },
+  M8:   { clear_n:9.0, clear_c:8.4, clear_l:9.5, cbore_d:14.5, cbore_h:8.0,  csk_d:14.5, csk_a:90, tap_d:6.75 },
+  M10:  { clear_n:11.0,clear_c:10.5,clear_l:11.5,cbore_d:18.0, cbore_h:10.0, csk_d:18.0, csk_a:90, tap_d:8.5  },
+};
+
+// Map dropdown value (e.g. "M1.2") to SCREW_SPECS key
+function specKey(size) { return size.replace(/\./g, "_"); }
+
+const HOLE_TYPES = [
+  { id: "clearance",   label: "Simple",  desc: "Clearance hole" },
+  { id: "counterbore", label: "Cbore",   desc: "Counterbore" },
+  { id: "countersink", label: "Csk",     desc: "Countersink (angled)" },
+  { id: "tapped",      label: "Tapped",  desc: "Tapped hole" },
+];
+
+const FIT_OPTIONS = [
+  ["normal", "Normal"],
+  ["close",  "Close"],
+  ["loose",  "Loose"],
+];
+
+function getScrewDims(holeType, screwSize, fit = "normal") {
+  const spec = SCREW_SPECS[specKey(screwSize)];
+  if (!spec) return { diameter: 3 };
+  const clearD = { normal: spec.clear_n, close: spec.clear_c, loose: spec.clear_l }[fit] ?? spec.clear_n;
+  if (holeType === "clearance")   return { diameter: clearD };
+  if (holeType === "counterbore") return { diameter: clearD, counterboreDiameter: spec.cbore_d, counterboreDepth: spec.cbore_h };
+  if (holeType === "countersink") return { diameter: clearD, countersinkDiameter: spec.csk_d, countersinkAngle: spec.csk_a };
+  if (holeType === "tapped")      return { diameter: spec.tap_d };
+  return { diameter: clearD };
+}
 
 const starterBody = {
   name: "Plane Operation Model",
@@ -87,6 +144,9 @@ function createBlock(index = 0) {
     cornerRadius: index === 1 ? 1.7 : 1,
     slotLength: 20, slotWidth: 5,
     screwSize: "M3",
+    holeType: "clearance",
+    fit: "normal",
+    showCustom: false,
     counterboreDiameter: 6, counterboreDepth: 2,
     countersinkDiameter: 0, countersinkAngle: 90,
     bossOuterDiameter: 8, bossHeight: 6,
@@ -182,9 +242,38 @@ function featureFromBlock(block) {
     };
   }
 
-  if (block.operation === "hole" || block.operation === "screw_hole") {
+  if (block.operation === "screw_hole") {
+    const ht = block.holeType || "clearance";
+    const dims = !block.showCustom ? getScrewDims(ht, block.screwSize, block.fit || "normal") : {};
+    const dia = block.showCustom ? Math.max(0.1, toNumber(block.diameter, 3)) : (dims.diameter ?? 3);
+    const cboreD = (ht === "counterbore")
+      ? (block.showCustom ? toNumber(block.counterboreDiameter) : (dims.counterboreDiameter ?? 0))
+      : undefined;
+    const cboreH = (ht === "counterbore")
+      ? (block.showCustom ? toNumber(block.counterboreDepth) : (dims.counterboreDepth ?? 0))
+      : undefined;
+    const cskD = (ht === "countersink")
+      ? (block.showCustom ? toNumber(block.countersinkDiameter) : (dims.countersinkDiameter ?? 0))
+      : undefined;
+    const cskA = (ht === "countersink")
+      ? (block.showCustom ? toNumber(block.countersinkAngle, 90) : (dims.countersinkAngle ?? 90))
+      : undefined;
     return {
-      type: block.operation === "screw_hole" ? "screw_hole" : "hole",
+      type: "screw_hole",
+      ...common,
+      diameter: dia,
+      ...depthFields(block),
+      counterbore_diameter: cboreD,
+      counterbore_depth: cboreH,
+      countersink_diameter: cskD,
+      countersink_angle: cskA,
+      thread: block.screwSize || undefined,
+    };
+  }
+
+  if (block.operation === "hole") {
+    return {
+      type: "hole",
       ...common,
       diameter: Math.max(0.1, toNumber(block.diameter, 3)),
       ...depthFields(block),
@@ -192,7 +281,6 @@ function featureFromBlock(block) {
       counterbore_depth: block.counterboreDepth ? toNumber(block.counterboreDepth) : undefined,
       countersink_diameter: block.countersinkDiameter ? toNumber(block.countersinkDiameter) : undefined,
       countersink_angle: toNumber(block.countersinkAngle, 90),
-      thread: block.screwSize || undefined,
     };
   }
 
@@ -209,7 +297,7 @@ function featureFromBlock(block) {
 function buildProject(body, blocks) {
   const features = [
     body.solid
-      ? { type: "box", id: "shell", length: "L", width: "W", height: "H" }
+      ? { type: "box", id: "shell", length: "L", width: "W", height: "H", fillet_radius: Math.max(0, toNumber(body.fillet_radius, 0)) }
       : { type: "enclosure", id: "shell", length: "L", width: "W", height: "H", wall: "wall", fillet_radius: Math.max(0, toNumber(body.fillet_radius, 0)) },
     ...blocks.filter((b) => b.enabled).map(featureFromBlock),
   ];
@@ -245,7 +333,7 @@ function placeModelAtCornerOrigin(model, controls, camera) {
   // Fit camera: stand back far enough to see the whole model
   const maxDim = Math.max(size.x, size.y, size.z);
   const dist = maxDim * 2.2;
-  camera.position.copy(center).add(new THREE.Vector3(dist * 0.8, -dist * 1.2, dist * 0.7));
+  camera.position.copy(center).add(new THREE.Vector3(dist * 0.7, dist * 0.5, dist * 0.9));
   controls.update();
 }
 
@@ -278,34 +366,68 @@ function Preview({ previewUrl, previewKind, selectedPlane }) {
     scene.add(new THREE.AxesHelper(26));
     scene.add(new THREE.HemisphereLight("#ffffff", "#26354f", 2.6));
     const key = new THREE.DirectionalLight("#ffffff", 2);
-    key.position.set(80, -80, 120);
+    key.position.set(100, 80, 120);
     key.castShadow = true;
     scene.add(key);
 
-    // Selected plane indicator
+    // Selected plane indicator (model exported Z-up from CadQuery, rotated -PI/2 around X so CadQuery Z → Three.js Y)
     if (selectedPlane && selectedPlane !== "custom") {
-      const plane = new THREE.Mesh(
-        new THREE.PlaneGeometry(72, 42),
-        new THREE.MeshBasicMaterial({ color: "#38bdf8", transparent: true, opacity: 0.12, side: THREE.DoubleSide })
+      const planeMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(80, 50),
+        new THREE.MeshBasicMaterial({ color: "#38bdf8", transparent: true, opacity: 0.15, side: THREE.DoubleSide })
       );
-      plane.position.set(0, 0, 20);
-      if (selectedPlane === "front" || selectedPlane === "back") plane.rotation.x = Math.PI / 2;
-      if (selectedPlane === "left" || selectedPlane === "right") plane.rotation.y = Math.PI / 2;
-      if (selectedPlane === "bottom") plane.position.z = -20;
-      scene.add(plane);
+      if (selectedPlane === "top") {
+        planeMesh.rotation.x = -Math.PI / 2;
+        planeMesh.position.set(50, 37, 30);
+      } else if (selectedPlane === "bottom") {
+        planeMesh.rotation.x = -Math.PI / 2;
+        planeMesh.position.set(50, 0, 30);
+      } else if (selectedPlane === "front") {
+        planeMesh.position.set(50, 18, 62);
+      } else if (selectedPlane === "back") {
+        planeMesh.rotation.y = Math.PI;
+        planeMesh.position.set(50, 18, -2);
+      } else if (selectedPlane === "left") {
+        planeMesh.rotation.y = Math.PI / 2;
+        planeMesh.position.set(-2, 18, 30);
+      } else if (selectedPlane === "right") {
+        planeMesh.rotation.y = -Math.PI / 2;
+        planeMesh.position.set(102, 18, 30);
+      }
+      scene.add(planeMesh);
     }
 
     let model = null;
     if (previewUrl && previewKind === "stl") {
       new STLLoader().load(previewUrl, (geometry) => {
-        const material = new THREE.MeshStandardMaterial({ color: "#3b82f6", roughness: 0.55, metalness: 0.08 });
-        model = new THREE.Mesh(geometry, material);
+        const mesh = new THREE.Mesh(
+          geometry,
+          new THREE.MeshStandardMaterial({ color: "#3b82f6", roughness: 0.55, metalness: 0.08 })
+        );
+        const edges = new THREE.LineSegments(
+          new THREE.EdgesGeometry(geometry, 15),
+          new THREE.LineBasicMaterial({ color: "#1a2a4a" })
+        );
+        model = new THREE.Group();
+        model.add(mesh);
+        model.add(edges);
+        model.rotation.x = -Math.PI / 2;
         scene.add(model);
         placeModelAtCornerOrigin(model, controls, camera);
       });
     } else if (previewUrl) {
       new GLTFLoader().load(previewUrl, (gltf) => {
         model = gltf.scene;
+        model.traverse((child) => {
+          if (child.isMesh) {
+            child.material = new THREE.MeshStandardMaterial({ color: "#3b82f6", roughness: 0.55, metalness: 0.08 });
+            child.add(new THREE.LineSegments(
+              new THREE.EdgesGeometry(child.geometry, 15),
+              new THREE.LineBasicMaterial({ color: "#1a2a4a" })
+            ));
+          }
+        });
+        model.rotation.x = -Math.PI / 2;
         scene.add(model);
         placeModelAtCornerOrigin(model, controls, camera);
       });
@@ -388,10 +510,19 @@ function PlaneOperationBlock({ block, selected, onSelect, onChange, onDuplicate,
   function set(field, value) { onChange({ ...block, [field]: value }); }
   function setCustom(field, value) { onChange({ ...block, customPlane: { ...block.customPlane, [field]: value } }); }
 
-  // When changing operation: auto-set a sensible default shape
+  function handleShapeChange(v) {
+    if (isConn && CONNECTOR_DIMS[v]) {
+      onChange({ ...block, shape: v, ...CONNECTOR_DIMS[v] });
+    } else {
+      set("shape", v);
+    }
+  }
+
   function handleOperationChange(op) {
-    const shapeDefaults = { cut: "rect", hole: "circle", screw_hole: "circle", connector: "usb_c", boss: "circle", add_solid: "rect" };
-    onChange({ ...block, operation: op, shape: shapeDefaults[op] ?? "circle" });
+    const shapeDefaults = { cut: "rect", screw_hole: "circle", connector: "usb_c", boss: "circle", add_solid: "rect" };
+    const newShape = shapeDefaults[op] ?? "circle";
+    const dims = (op === "connector" && CONNECTOR_DIMS[newShape]) ? CONNECTOR_DIMS[newShape] : {};
+    onChange({ ...block, operation: op, shape: newShape, ...dims });
   }
 
   return (
@@ -438,30 +569,18 @@ function PlaneOperationBlock({ block, selected, onSelect, onChange, onDuplicate,
       )}
 
       {/* ── Position X Y ── */}
-      <div className="formGrid" style={{ marginTop: 10 }}>
-        <Field label="X local (mm)" value={block.x} onChange={(v) => set("x", v)} />
-        <Field label="Y local (mm)" value={block.y} onChange={(v) => set("y", v)} />
-      </div>
-
-      {/* ── Advanced positioning (collapse) ── */}
-      <button
-        className="advToggle"
-        onClick={(e) => { e.stopPropagation(); set("showAdvanced", !block.showAdvanced); }}
-      >
-        {block.showAdvanced ? "▾" : "▸"} Advanced positioning
-      </button>
-      {block.showAdvanced && (
-        <div className="formGrid compact" style={{ marginTop: 6 }}>
-          <Field label="Z (mm)"         value={block.z}        onChange={(v) => set("z", v)} />
-          <Field label="Face offset"    value={block.offset}   onChange={(v) => set("offset", v)} />
-          <Field label="Face rotation°" value={block.rotation} onChange={(v) => set("rotation", v)} />
+      <div className="subPanel" style={{ marginTop: 10 }}>
+        <div className="subTitle" style={{ marginBottom: 8 }}>Position</div>
+        <div className="formGrid">
+          <Field label="X local (mm)" value={block.x} onChange={(v) => set("x", v)} />
+          <Field label="Y local (mm)" value={block.y} onChange={(v) => set("y", v)} />
         </div>
-      )}
+      </div>
 
       {/* ── Shape / Cutout type (only when needed) ── */}
       {showShapeDropdown && (
         <div className="formGrid" style={{ marginTop: 10 }}>
-          <SelectField label="Shape / cutout type" value={block.shape} onChange={(v) => set("shape", v)}>
+          <SelectField label="Shape / cutout type" value={block.shape} onChange={handleShapeChange}>
             {shapeOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </SelectField>
           {/* Depth mode alongside shape */}
@@ -512,22 +631,89 @@ function PlaneOperationBlock({ block, selected, onSelect, onChange, onDuplicate,
         </div>
       )}
 
-      {/* ── Screw Hole Parameters ── */}
-      {isScrew && (
-        <div className="subPanel">
-          <div className="subTitle">Screw Hole</div>
-          <div className="formGrid compact">
-            <SelectField label="Screw size" value={block.screwSize} onChange={(v) => set("screwSize", v)}>
-              {SCREW_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
-            </SelectField>
-            <Field label="Hole ⌀ (mm)"          value={block.diameter}            onChange={(v) => set("diameter", v)}            min="0.1" />
-            <Field label="Counterbore ⌀"         value={block.counterboreDiameter} onChange={(v) => set("counterboreDiameter", v)} min="0" />
-            <Field label="Counterbore depth"     value={block.counterboreDepth}    onChange={(v) => set("counterboreDepth", v)}    min="0" />
-            <Field label="Countersink ⌀ (0=off)" value={block.countersinkDiameter} onChange={(v) => set("countersinkDiameter", v)} min="0" />
-            <Field label="Countersink angle°"    value={block.countersinkAngle}    onChange={(v) => set("countersinkAngle", v)} />
+      {/* ── Screw Hole Wizard ── */}
+      {isScrew && (() => {
+        const ht = block.holeType || "clearance";
+        const autoD = getScrewDims(ht, block.screwSize, block.fit || "normal");
+        const dia    = block.showCustom ? block.diameter            : autoD.diameter;
+        const cboreD = block.showCustom ? block.counterboreDiameter : autoD.counterboreDiameter;
+        const cboreH = block.showCustom ? block.counterboreDepth    : autoD.counterboreDepth;
+        const cskD   = block.showCustom ? block.countersinkDiameter : autoD.countersinkDiameter;
+        const cskA   = block.showCustom ? block.countersinkAngle    : autoD.countersinkAngle;
+        return (
+          <div className="subPanel">
+            <div className="subTitle">Screw Hole</div>
+
+            {/* Hole type selector */}
+            <div className="holeTypeRow">
+              {HOLE_TYPES.map(({ id, label, desc }) => (
+                <button
+                  key={id}
+                  className={"holeTypeBtn" + (ht === id ? " active" : "")}
+                  title={desc}
+                  onClick={(e) => { e.stopPropagation(); set("holeType", id); }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Screw size + fit */}
+            <div className="formGrid" style={{ marginTop: 8 }}>
+              <SelectField label="Screw size" value={block.screwSize}
+                onChange={(v) => set("screwSize", v)}>
+                {SCREW_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </SelectField>
+              {ht !== "tapped" && (
+                <SelectField label="Fit" value={block.fit || "normal"}
+                  onChange={(v) => set("fit", v)}>
+                  {FIT_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </SelectField>
+              )}
+            </div>
+
+            {/* Dim summary */}
+            <div className="dimSummary">
+              <span>⌀ {dia?.toFixed ? dia.toFixed(2) : dia} mm</span>
+              {ht === "counterbore" && <><span>Cbore ⌀ {cboreD?.toFixed ? cboreD.toFixed(1) : cboreD}</span><span>depth {cboreH?.toFixed ? cboreH.toFixed(1) : cboreH}</span></>}
+              {ht === "countersink" && <><span>Csk ⌀ {cskD?.toFixed ? cskD.toFixed(1) : cskD}</span><span>{cskA}°</span></>}
+            </div>
+
+            {/* Custom sizing toggle */}
+            <label className="checkboxRow" onClick={(e) => e.stopPropagation()}>
+              <input type="checkbox" checked={!!block.showCustom}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    const d = getScrewDims(ht, block.screwSize, block.fit || "normal");
+                    onChange({ ...block, showCustom: true,
+                      diameter:            d.diameter            ?? block.diameter,
+                      counterboreDiameter: d.counterboreDiameter ?? block.counterboreDiameter,
+                      counterboreDepth:    d.counterboreDepth    ?? block.counterboreDepth,
+                      countersinkDiameter: d.countersinkDiameter ?? block.countersinkDiameter,
+                      countersinkAngle:    d.countersinkAngle    ?? block.countersinkAngle,
+                    });
+                  } else { set("showCustom", false); }
+                }}
+              />
+              Custom sizing
+            </label>
+
+            {block.showCustom && (
+              <div className="formGrid compact" style={{ marginTop: 8 }}>
+                <Field label="Hole ⌀ (mm)" value={block.diameter} onChange={(v) => set("diameter", v)} min="0.1" />
+                {ht === "counterbore" && <>
+                  <Field label="Cbore ⌀ (mm)"   value={block.counterboreDiameter} onChange={(v) => set("counterboreDiameter", v)} min="0" />
+                  <Field label="Cbore depth"     value={block.counterboreDepth}    onChange={(v) => set("counterboreDepth", v)}    min="0" />
+                </>}
+                {ht === "countersink" && <>
+                  <Field label="Csk ⌀ (mm)"    value={block.countersinkDiameter} onChange={(v) => set("countersinkDiameter", v)} min="0" />
+                  <Field label="Csk angle°"     value={block.countersinkAngle}    onChange={(v) => set("countersinkAngle", v)} />
+                </>}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── Pattern ── */}
       <div className="subPanel">
@@ -686,7 +872,7 @@ function App() {
               <Field label="Width"  value={body.width}  onChange={(v) => setBody({ ...body, width: v })}  min="1" />
               <Field label="Height" value={body.height} onChange={(v) => setBody({ ...body, height: v })} min="1" />
               {!body.solid && <Field label="Wall"   value={body.wall}         onChange={(v) => setBody({ ...body, wall: v })}         min="0.1" />}
-              {!body.solid && <Field label="Fillet" value={body.fillet_radius} onChange={(v) => setBody({ ...body, fillet_radius: v })} min="0" />}
+              <Field label="Fillet" value={body.fillet_radius} onChange={(v) => setBody({ ...body, fillet_radius: v })} min="0" />
             </div>
           </section>
 
@@ -735,22 +921,22 @@ function App() {
         </aside>
       </section>
 
-      {/* ── History Bar ── */}
+      {/* ── Timeline Bar (Fusion 360-style) ── */}
       <aside className="historyBar">
-        <div className="panelTitle">Operation History</div>
-        <div className="historyItems">
+        <span className="timelineLabel">Timeline</span>
+        <div className="timelineStrip">
           {blocks.map((block) => (
             <button
               key={block.id}
-              className={block.id === selectedId ? "historyItem selected" : "historyItem"}
+              className={"timelineChip" + (block.id === selectedId ? " selected" : "") + (!block.enabled ? " suppressed" : "")}
               onClick={() => setSelectedId(block.id)}
+              title={`${block.label}\n${block.plane} · ${block.operation} · ${block.patternType}`}
             >
-              <span className={block.enabled ? "enabledDot on" : "enabledDot"} />
-              <strong>{block.label}</strong>
-              <small>{block.plane} · {block.operation} · {block.patternType}</small>
+              <span className="chipIcon">{OP_ICONS[block.operation] ?? "◈"}</span>
+              <span className="chipName">{block.label}</span>
             </button>
           ))}
-          <button className="historyItem addHistoryItem" onClick={addBlock}>+</button>
+          <button className="timelineAdd" onClick={addBlock} title="Add operation">+</button>
         </div>
       </aside>
     </main>

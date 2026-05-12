@@ -25,7 +25,7 @@ textarea {
 .shell {
   height: 100vh;
   display: grid;
-  grid-template-rows: 52px minmax(0, 1fr) 118px;
+  grid-template-rows: 52px minmax(0, 1fr) 76px;
   background: #080b12;
   overflow: hidden;
 }
@@ -368,47 +368,116 @@ button:hover {
   white-space: pre-wrap;
 }
 
+/* ── Fusion 360-style Timeline ──────────────────────────────────────────── */
 .historyBar {
   min-height: 0;
   border-right: 0;
   border-left: 0;
   border-bottom: 0;
   border-radius: 0;
-  padding: 12px 14px;
-  background: #0d111a;
+  padding: 8px 14px;
+  background: #0a0e18;
+  border-top: 1px solid #1a2540;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.historyItems {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(190px, 240px);
-  gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 4px;
+.timelineLabel {
+  color: #5a7399;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
 }
 
-.historyItem {
-  display: grid;
+.timelineStrip {
+  display: flex;
   gap: 3px;
-  min-height: 62px;
-  text-align: left;
-  align-content: center;
+  overflow-x: auto;
+  align-items: flex-end;
+  flex: 1;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: #263248 transparent;
 }
 
-.historyItem.selected {
+.timelineChip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 52px;
+  min-height: 52px;
+  padding: 5px 4px;
+  border: 1px solid #1e2d45;
+  border-radius: 4px;
+  background: #111827;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.1s, background 0.1s;
+}
+
+.timelineChip:hover {
   border-color: #3b82f6;
+  background: #162033;
 }
 
-.historyItem span,
-.historyItem small {
-  color: #8fa5cc;
-  font-size: 11px;
+.timelineChip.selected {
+  border-color: #3b82f6;
+  background: #1e3a5f;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.25);
 }
 
-.historyItem strong {
+.timelineChip.suppressed {
+  opacity: 0.35;
+}
+
+.chipIcon {
+  font-size: 16px;
+  line-height: 1;
+  color: #93c5fd;
+}
+
+.timelineChip.suppressed .chipIcon {
+  color: #4b5563;
+}
+
+.chipName {
+  font-size: 9px;
+  color: #6b83a6;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 46px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.timelineChip.selected .chipName {
+  color: #93c5fd;
+}
+
+.timelineAdd {
+  width: 36px;
+  min-height: 52px;
+  padding: 0;
+  border-style: dashed;
+  border-color: #1e2d45;
+  color: #3a5070;
+  font-size: 20px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  background: transparent;
+}
+
+.timelineAdd:hover {
+  border-color: #3b82f6;
+  color: #93c5fd;
 }
 
 @media (max-width: 1180px) {
