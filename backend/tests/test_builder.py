@@ -370,3 +370,86 @@ def test_custom_plane_cutout_reduces_volume():
         ],
     )
     assert build_all(proj, {})[0][1].val().Volume() < 40 * 30 * 20
+
+
+# ---------------------------------------------------------------------------
+# Vent feature tests
+# ---------------------------------------------------------------------------
+
+def test_vent_circle_removes_volume():
+    proj = Project(
+        name="t",
+        parameters=[],
+        features=[
+            {"type": "box", "id": "body", "length": 80, "width": 60, "height": 20},
+            {
+                "type": "vent",
+                "id": "vents",
+                "target": "body",
+                "face": "top",
+                "shape": "circle",
+                "diameter": 4,
+                "rows": 3,
+                "columns": 4,
+                "row_spacing": 10,
+                "col_spacing": 10,
+            },
+        ],
+    )
+    env = build_env(proj.parameters)
+    result = build_all(proj, env)
+    solid_vol = 80 * 60 * 20
+    assert result[0][1].val().Volume() < solid_vol
+
+
+def test_vent_hex_removes_volume():
+    proj = Project(
+        name="t",
+        parameters=[],
+        features=[
+            {"type": "box", "id": "body", "length": 60, "width": 40, "height": 15},
+            {
+                "type": "vent",
+                "id": "vents",
+                "target": "body",
+                "face": "top",
+                "shape": "hex",
+                "diameter": 5,
+                "rows": 2,
+                "columns": 3,
+                "row_spacing": 8,
+                "col_spacing": 8,
+            },
+        ],
+    )
+    env = build_env(proj.parameters)
+    result = build_all(proj, env)
+    assert result[0][1].val().Volume() < 60 * 40 * 15
+
+
+def test_vent_rect_blind():
+    proj = Project(
+        name="t",
+        parameters=[],
+        features=[
+            {"type": "box", "id": "body", "length": 80, "width": 60, "height": 20},
+            {
+                "type": "vent",
+                "id": "vents",
+                "target": "body",
+                "face": "top",
+                "shape": "rect",
+                "width": 6,
+                "height": 3,
+                "rows": 2,
+                "columns": 3,
+                "row_spacing": 10,
+                "col_spacing": 12,
+                "through": False,
+                "depth": 5,
+            },
+        ],
+    )
+    env = build_env(proj.parameters)
+    result = build_all(proj, env)
+    assert result[0][1].val().Volume() < 80 * 60 * 20

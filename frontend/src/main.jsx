@@ -16,6 +16,7 @@ const OPERATIONS = [
   ["connector",  "Connector cutout"],
   ["boss",       "Boss / standoff"],
   ["add_solid",  "Add solid"],
+  ["vent",       "Vent / ventilation"],
 ];
 
 // Shapes grouped by operation context
@@ -72,7 +73,16 @@ const OP_ICONS = {
   boss:       "⬡",
   add_solid:  "⬛",
   hole:       "○",
+  vent:       "⠿",
 };
+
+const VENT_SHAPES = [
+  ["circle",       "Circle"],
+  ["hex",          "Hexagon"],
+  ["rect",         "Rectangle"],
+  ["rounded_rect", "Rounded rect"],
+  ["slot",         "Slot"],
+];
 
 // ISO M-series specs: clear_n/c/l=clearance normal/close/loose, cbore_d/h=counterbore, csk_d/a=countersink, tap_d=tap drill
 const SCREW_SPECS = {
@@ -156,6 +166,12 @@ function createBlock(index = 0) {
     rows: 2, columns: 2, rowSpacing: 40, columnSpacing: 70,
     circularCount: 6, centerX: 0, centerY: 0, circularRadius: 20, angleStep: 60,
     showAdvanced: false,
+    // vent-specific
+    ventShape: "circle", ventRows: 3, ventColumns: 5,
+    ventRowSpacing: 8, ventColSpacing: 8,
+    ventOffsetX: 0, ventOffsetY: 0,
+    ventDiameter: 3, ventWidth: 4, ventHeight: 4,
+    ventCornerRadius: 0.5, ventSlotLength: 8, ventSlotWidth: 2,
   };
 }
 
@@ -288,6 +304,31 @@ function featureFromBlock(block) {
     const position = { x: toNumber(block.x), y: toNumber(block.y), z: toNumber(block.z) };
     if (block.shape === "circle") return { type: "cylinder", id, target: "shell", operation: "union", position, diameter: Math.max(0.1, toNumber(block.diameter, 5)), height: Math.max(0.1, toNumber(block.depth, 8)) };
     return { type: "box", id, target: "shell", operation: "union", position, rotation: { x: 0, y: 0, z: toNumber(block.rotation) }, length: Math.max(0.1, toNumber(block.width, 12)), width: Math.max(0.1, toNumber(block.height, 8)), height: Math.max(0.1, toNumber(block.depth, 6)) };
+  }
+
+  if (block.operation === "vent") {
+    const vs = block.ventShape || "circle";
+    const holeDims =
+      (vs === "circle" || vs === "hex") ? { diameter: Math.max(0.1, toNumber(block.ventDiameter, 3)) } :
+      vs === "slot" ? { slot_length: Math.max(0.1, toNumber(block.ventSlotLength, 8)), diameter: Math.max(0.1, toNumber(block.ventSlotWidth, 2)) } :
+      { width: Math.max(0.1, toNumber(block.ventWidth, 4)), height: Math.max(0.1, toNumber(block.ventHeight, 4)), corner_radius: Math.max(0, toNumber(block.ventCornerRadius, 0)) };
+    const depthPart = block.depthMode === "through" ? { through: true } : { through: false, depth: Math.max(0.1, toNumber(block.depth, 2)) };
+    return {
+      type: "vent",
+      id,
+      target: "shell",
+      face: block.plane === "custom" ? "top" : (block.plane || "top"),
+      shape: vs,
+      rows: Math.max(1, toNumber(block.ventRows, 1)),
+      columns: Math.max(1, toNumber(block.ventColumns, 1)),
+      row_spacing: Math.max(0.1, toNumber(block.ventRowSpacing, 8)),
+      col_spacing: Math.max(0.1, toNumber(block.ventColSpacing, 8)),
+      offset_x: toNumber(block.ventOffsetX, 0),
+      offset_y: toNumber(block.ventOffsetY, 0),
+      rotation: toNumber(block.rotation, 0),
+      ...depthPart,
+      ...holeDims,
+    };
   }
 
   const shape = block.operation === "connector" ? block.shape : block.shape;
@@ -487,9 +528,10 @@ function PlaneOperationBlock({ block, selected, onSelect, onChange, onDuplicate,
   const isBoss  = block.operation === "boss";
   const isConn  = block.operation === "connector";
   const isSolid = block.operation === "add_solid";
+  const isVent  = block.operation === "vent";
 
   // Shape dropdown config
-  const showShapeDropdown = !isScrew && !isBoss;
+  const showShapeDropdown = !isScrew && !isBoss && !isVent;
   const shapeOptions = isHole ? SHAPES_HOLE : isConn ? SHAPES_CONNECTOR : isSolid ? SHAPES_SOLID : SHAPES_CUT;
 
   // Size controls visibility
@@ -504,8 +546,8 @@ function PlaneOperationBlock({ block, selected, onSelect, onChange, onDuplicate,
   const showCornerR    = ["rounded_rect", "usb_c", "usb_a", "hdmi"].includes(block.shape) && !isScrew;
   const hasSizeSection = showDiameter || showHoleDia || showSlotFields || showWH || isBoss;
 
-  // Depth shown for everything except boss
-  const showDepth = !isBoss;
+  // Depth shown for everything except boss and vent (vent has its own depth row)
+  const showDepth = !isBoss && !isVent;
 
   function set(field, value) { onChange({ ...block, [field]: value }); }
   function setCustom(field, value) { onChange({ ...block, customPlane: { ...block.customPlane, [field]: value } }); }
@@ -519,7 +561,7 @@ function PlaneOperationBlock({ block, selected, onSelect, onChange, onDuplicate,
   }
 
   function handleOperationChange(op) {
-    const shapeDefaults = { cut: "rect", screw_hole: "circle", connector: "usb_c", boss: "circle", add_solid: "rect" };
+    const shapeDefaults = { cut: "rect", screw_hole: "circle", connector: "usb_c", boss: "circle", add_solid: "rect", vent: "circle" };
     const newShape = shapeDefaults[op] ?? "circle";
     const dims = (op === "connector" && CONNECTOR_DIMS[newShape]) ? CONNECTOR_DIMS[newShape] : {};
     onChange({ ...block, operation: op, shape: newShape, ...dims });
@@ -715,8 +757,47 @@ function PlaneOperationBlock({ block, selected, onSelect, onChange, onDuplicate,
         );
       })()}
 
+      {/* ── Vent Panel ── */}
+      {isVent && (
+        <div className="subPanel">
+          <div className="subTitle">Vent / Ventilation</div>
+          <div className="formGrid compact">
+            <SelectField label="Hole shape" value={block.ventShape || "circle"} onChange={(v) => set("ventShape", v)}>
+              {VENT_SHAPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </SelectField>
+            <SelectField label="Depth mode" value={block.depthMode} onChange={(v) => set("depthMode", v)}>
+              {[["through","Through All"],["blind","Blind"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </SelectField>
+            {block.depthMode === "blind" && (
+              <Field label="Depth (mm)" value={block.depth} onChange={(v) => set("depth", v)} min="0.1" />
+            )}
+            <Field label="Rows"       step="1" value={block.ventRows}       onChange={(v) => set("ventRows", v)}       min="1" />
+            <Field label="Columns"    step="1" value={block.ventColumns}    onChange={(v) => set("ventColumns", v)}    min="1" />
+            <Field label="Row spacing (mm)"    value={block.ventRowSpacing}  onChange={(v) => set("ventRowSpacing", v)}  min="0.1" />
+            <Field label="Col spacing (mm)"    value={block.ventColSpacing}  onChange={(v) => set("ventColSpacing", v)}  min="0.1" />
+            <Field label="Offset X (mm)"       value={block.ventOffsetX}    onChange={(v) => set("ventOffsetX", v)} />
+            <Field label="Offset Y (mm)"       value={block.ventOffsetY}    onChange={(v) => set("ventOffsetY", v)} />
+            <Field label="Rotation°"           value={block.rotation}       onChange={(v) => set("rotation", v)} />
+            {(block.ventShape === "circle" || block.ventShape === "hex") && (
+              <Field label="Diameter (mm)" value={block.ventDiameter} onChange={(v) => set("ventDiameter", v)} min="0.1" />
+            )}
+            {block.ventShape === "slot" && <>
+              <Field label="Slot length (mm)" value={block.ventSlotLength} onChange={(v) => set("ventSlotLength", v)} min="0.1" />
+              <Field label="Slot width (mm)"  value={block.ventSlotWidth}  onChange={(v) => set("ventSlotWidth", v)}  min="0.1" />
+            </>}
+            {(block.ventShape === "rect" || block.ventShape === "rounded_rect") && <>
+              <Field label="Width (mm)"  value={block.ventWidth}  onChange={(v) => set("ventWidth", v)}  min="0.1" />
+              <Field label="Height (mm)" value={block.ventHeight} onChange={(v) => set("ventHeight", v)} min="0.1" />
+              {block.ventShape === "rounded_rect" && (
+                <Field label="Corner R" value={block.ventCornerRadius} onChange={(v) => set("ventCornerRadius", v)} min="0" />
+              )}
+            </>}
+          </div>
+        </div>
+      )}
+
       {/* ── Pattern ── */}
-      <div className="subPanel">
+      {!isVent && <div className="subPanel">
         <div className="subTitle">Pattern / Quantity</div>
         <div className="formGrid compact">
           <SelectField label="Pattern" value={block.patternType} onChange={(v) => set("patternType", v)}>
@@ -743,7 +824,7 @@ function PlaneOperationBlock({ block, selected, onSelect, onChange, onDuplicate,
             <Field label="Angle step°"      value={block.angleStep}       onChange={(v) => set("angleStep", v)} />
           </>}
         </div>
-      </div>
+      </div>}
     </section>
   );
 }

@@ -327,6 +327,34 @@ class EnclosureFeature(BaseModel):
     screw_holes: list[ScrewHoleSpec] = Field(default_factory=list)
 
 
+class VentFeature(BaseModel):
+    """Grid of ventilation holes / slots on a named face."""
+
+    type: Literal["vent"]
+    id: str
+    target: str
+    face: FaceName = "top"
+    shape: Literal["circle", "rect", "rounded_rect", "slot", "hex"] = "circle"
+    # hole dimensions
+    diameter: NumberExpr | None = None
+    width: NumberExpr | None = None
+    height: NumberExpr | None = None
+    corner_radius: NumberExpr | None = None
+    slot_length: NumberExpr | None = None
+    # grid layout
+    rows: int = 1
+    columns: int = 1
+    row_spacing: NumberExpr = 5.0
+    col_spacing: NumberExpr = 5.0
+    # centre offset on face
+    offset_x: NumberExpr = 0.0
+    offset_y: NumberExpr = 0.0
+    # individual hole rotation (degrees)
+    rotation: NumberExpr = 0.0
+    depth: NumberExpr | None = None
+    through: bool = True
+
+
 AnyFeature = Annotated[
     Union[
         EnclosureFeature,
@@ -348,6 +376,7 @@ AnyFeature = Annotated[
         HoleFeature,
         ScrewHoleFeature,
         BossFeature,
+        VentFeature,
     ],
     Field(discriminator="type"),
 ]

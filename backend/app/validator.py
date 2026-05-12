@@ -303,6 +303,29 @@ def validate_project(project, env: dict[str, float]) -> ValidationResult:
             result.errors.append(f"{feat.id}: duplicate feature ID")
         seen.add(feat.id)
 
+        if feat.type == "vent":
+            _target_exists(feat.target, known_bodies, f"{feat.id}.target", result)
+            fid = feat.id
+            if feat.rows < 1:
+                result.errors.append(f"{fid}.rows: must be at least 1")
+            if feat.columns < 1:
+                result.errors.append(f"{fid}.columns: must be at least 1")
+            _positive(feat.row_spacing, env, f"{fid}.row_spacing", result)
+            _positive(feat.col_spacing, env, f"{fid}.col_spacing", result)
+            if feat.shape in ("circle", "hex"):
+                _positive(feat.diameter, env, f"{fid}.diameter", result)
+            elif feat.shape == "slot":
+                _positive(feat.slot_length, env, f"{fid}.slot_length", result)
+                _positive(feat.diameter, env, f"{fid}.diameter", result)
+            else:
+                _positive(feat.width, env, f"{fid}.width", result)
+                _positive(feat.height, env, f"{fid}.height", result)
+                if feat.corner_radius is not None:
+                    _non_negative(feat.corner_radius, env, f"{fid}.corner_radius", result)
+            if feat.depth is not None:
+                _positive(feat.depth, env, f"{fid}.depth", result)
+            continue
+
         if feat.type in ("cutout", "hole", "screw_hole", "boss"):
             _target_exists(feat.target, known_bodies, f"{feat.id}.target", result)
             _validate_placement(feat.placement, env, f"{feat.id}.placement", result)

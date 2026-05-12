@@ -33,6 +33,7 @@ from .schema import (
     TorusPrimitive,
     Vec2,
     Vec3,
+    VentFeature,
     WedgePrimitive,
 )
 
@@ -601,6 +602,76 @@ def _build_enclosure(feat: EnclosureFeature, env: dict[str, float]) -> cq.Workpl
     return _apply_transform(solid, feat, env)
 
 
+def _hex_profile(diameter: float) -> list[tuple[float, float]]:
+    """Return six vertices of a regular hexagon with the given tip-to-tip diameter."""
+    r = diameter / 2
+    return [(r * math.cos(math.radians(30 + 60 * i)), r * math.sin(math.radians(30 + 60 * i))) for i in range(6)]
+
+
+def _apply_vent_feature(solid: cq.Workplane, feat: VentFeature, env: dict[str, float]) -> cq.Workplane:
+    """Cut a rectangular grid of ventilation holes on a face."""
+    rows = feat.rows
+    cols = feat.columns
+    row_spacing = _num(feat.row_spacing, env)
+    col_spacing = _num(feat.col_spacing, env)
+    offset_x = _num(feat.offset_x, env)
+    offset_y = _num(feat.offset_y, env)
+    rotation = _num(feat.rotation, env, 0.0)
+    through = feat.through or feat.depth is None
+    depth = _num(feat.depth, env, _through_depth(solid) if through else 1.0)
+
+    grid_w = (cols - 1) * col_spacing
+    grid_h = (rows - 1) * row_spacing
+
+    for r in range(rows):
+        for c in range(cols):
+            u = offset_x + c * col_spacing - grid_w / 2
+            v = offset_y + r * row_spacing - grid_h / 2
+            wp = _face_workplane(solid, feat.face).center(u, v)
+            if rotation:
+                wp = wp.transformed(rotate=(0, 0, rotation))
+
+            if feat.shape == "circle":
+                diameter = _num(feat.diameter, env)
+                wp = wp.circle(diameter / 2)
+            elif feat.shape == "hex":
+                diameter = _num(feat.diameter, env)
+                pts = _hex_profile(diameter)
+                wp = wp.polyline(pts).close()
+            elif feat.shape == "slot":
+                slot_len = _num(feat.slot_length, env)
+                diameter = _num(feat.diameter, env)
+                wp = wp.slot2D(slot_len, diameter)
+            else:
+                width = _num(feat.width, env)
+                height = _num(feat.height, env)
+                corner = _num(feat.corner_radius, env, 0.0) if feat.corner_radius is not None else 0.0
+                if feat.shape == "rounded_rect" and corner > 0:
+                    safe = min(corner, width / 2 - 0.001, height / 2 - 0.001)
+                    if safe > 0:
+                        w2, h2, rr = width / 2, height / 2, safe
+                        wp = (
+                            wp.moveTo(w2 - rr, -h2)
+                            .lineTo(-w2 + rr, -h2)
+                            .threePointArc((-w2, -h2), (-w2, -h2 + rr))
+                            .lineTo(-w2, h2 - rr)
+                            .threePointArc((-w2, h2), (-w2 + rr, h2))
+                            .lineTo(w2 - rr, h2)
+                            .threePointArc((w2, h2), (w2, h2 - rr))
+                            .lineTo(w2, -h2 + rr)
+                            .threePointArc((w2, -h2), (w2 - rr, -h2))
+                            .close()
+                        )
+                    else:
+                        wp = wp.rect(width, height)
+                else:
+                    wp = wp.rect(width, height)
+
+            solid = wp.cutBlind(-depth)
+
+    return solid
+
+
 def _combine(target: cq.Workplane, tool: cq.Workplane, operation: str) -> cq.Workplane:
     if operation == "union":
         return target.union(tool)
@@ -624,7 +695,7 @@ def build_all(project, env: dict[str, float]) -> list[tuple[str, cq.Workplane]]:
     order: list[str] = []
 
     for feat in project.features:
-        if feat.type in ("cutout", "hole", "screw_hole", "boss"):
+        if feat.type in ("cutout", "hole", "screw_hole", "boss", "vent"):
             target_id = feat.target
             if target_id not in bodies:
                 raise ValueError(f"{feat.id}: target body {target_id!r} does not exist")
@@ -632,6 +703,8 @@ def build_all(project, env: dict[str, float]) -> list[tuple[str, cq.Workplane]]:
                 bodies[target_id] = _apply_boss_feature(bodies[target_id], feat, env)
             elif feat.type in ("hole", "screw_hole"):
                 bodies[target_id] = _apply_hole_feature(bodies[target_id], feat, env)
+            elif feat.type == "vent":
+                bodies[target_id] = _apply_vent_feature(bodies[target_id], feat, env)
             else:
                 bodies[target_id] = _apply_cutout_feature(bodies[target_id], feat, env)
             continue
