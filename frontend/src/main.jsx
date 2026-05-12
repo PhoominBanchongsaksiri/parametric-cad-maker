@@ -31,12 +31,10 @@ const SHAPES_HOLE = [
   ["slot",   "Slot"],
 ];
 const SHAPES_CONNECTOR = [
-  ["usb_c",        "USB-C"],
-  ["usb_a",        "USB-A"],
-  ["hdmi",         "HDMI"],
-  ["dc_jack",      "DC jack"],
-  ["rect",         "Rectangle"],
-  ["rounded_rect", "Rounded rectangle"],
+  ["usb_c",  "USB-C"],
+  ["usb_a",  "USB-A"],
+  ["hdmi",   "HDMI"],
+  ["dc_jack","DC jack"],
 ];
 const SHAPES_SOLID = [
   ["circle", "Cylinder"],
@@ -288,10 +286,19 @@ function Preview({ previewUrl, previewKind, selectedPlane }) {
         new THREE.PlaneGeometry(72, 42),
         new THREE.MeshBasicMaterial({ color: "#38bdf8", transparent: true, opacity: 0.12, side: THREE.DoubleSide })
       );
-      plane.position.set(0, 0, 20);
-      if (selectedPlane === "front" || selectedPlane === "back") plane.rotation.x = Math.PI / 2;
-      if (selectedPlane === "left" || selectedPlane === "right") plane.rotation.y = Math.PI / 2;
-      if (selectedPlane === "bottom") plane.position.z = -20;
+      if (selectedPlane === "bottom") {
+        plane.position.set(36, 21, 0);
+      } else {
+        plane.position.set(36, 21, 20);
+        if (selectedPlane === "front" || selectedPlane === "back") {
+          plane.rotation.x = Math.PI / 2;
+          plane.position.set(36, 0, 10);
+        }
+        if (selectedPlane === "left" || selectedPlane === "right") {
+          plane.rotation.y = Math.PI / 2;
+          plane.position.set(0, 21, 10);
+        }
+      }
       scene.add(plane);
     }
 
@@ -405,15 +412,17 @@ function PlaneOperationBlock({ block, selected, onSelect, onChange, onDuplicate,
           {block.enabled ? "On" : "Off"}
         </button>
         <input className="blockName" value={block.label} onChange={(e) => set("label", e.target.value)} />
-        <button className="arrowBtn" title="Move up"   onClick={(e) => { e.stopPropagation(); onMoveUp();   }}>↑</button>
-        <button className="arrowBtn" title="Move down" onClick={(e) => { e.stopPropagation(); onMoveDown(); }}>↓</button>
         <button onClick={(e) => { e.stopPropagation(); onDuplicate(); }}>Duplicate</button>
         <button className="quietDanger" onClick={(e) => { e.stopPropagation(); onDelete(); }}>Delete</button>
       </div>
 
       {/* ── Plane + Operation ── */}
       <div className="formGrid">
-        <SelectField label="Plane" value={block.plane} onChange={(v) => set("plane", v)}>
+        <SelectField label="Plane" value={block.plane} onChange={(v) => {
+          const next = { ...block, plane: v };
+          if (v === "bottom") { next.x = 0; next.y = 0; }
+          onChange(next);
+        }}>
           {FACES.map((f) => <option key={f} value={f}>{f === "custom" ? "Custom Plane" : f}</option>)}
         </SelectField>
         <SelectField label="Operation" value={block.operation} onChange={handleOperationChange}>
@@ -423,7 +432,7 @@ function PlaneOperationBlock({ block, selected, onSelect, onChange, onDuplicate,
 
       {/* ── Custom Plane ── */}
       {block.plane === "custom" && (
-        <div className="subPanel">
+        <div className="subPanel subPanelCompact">
           <div className="subTitle">Custom Plane</div>
           <div className="formGrid compact">
             <Field label="Origin X" value={block.customPlane.originX} onChange={(v) => setCustom("originX", v)} />
