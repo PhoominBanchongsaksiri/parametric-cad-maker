@@ -111,17 +111,17 @@ Preview renders backend-generated GLB. The Three.js scene is display-only.
 
 ### Backend
 
-> **Windows note:** `cadquery-ocp` bundles its own VTK. If you have `vtk` installed
-> separately (e.g. via `pip install vtk`), it will conflict and cause a
-> `ModuleNotFoundError: No module named 'vtkmodules'` error.
-> Fix: `pip uninstall vtk -y` before running.
+> **Windows requirement:** CadQuery requires **Python 3.11**. Python 3.12+ is not compatible.
+> Download Python 3.11 from python.org/downloads then create the venv with `py -3.11`.
+>
+> If you see `ModuleNotFoundError: No module named 'vtkmodules'`, run `pip uninstall vtk -y` first.
 
 **Windows (PowerShell):**
 
 ```powershell
 cd backend
-python -m venv .venv
-.venv\Scripts\Activate.ps1
+py -3.11 -m venv .venv311
+.venv311\Scripts\Activate.ps1
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
@@ -146,13 +146,19 @@ npm run dev
 
 The frontend reads `VITE_API_BASE`; when unset it defaults to `http://localhost:8000`.
 
+If port 5173 is in use, run on a different port:
+
+```bash
+npm run dev -- --port 3000
+```
+
 ## Tests
 
 **Windows:**
 
 ```powershell
 cd backend
-.venv\Scripts\Activate.ps1
+.venv311\Scripts\Activate.ps1
 pytest tests/
 ```
 

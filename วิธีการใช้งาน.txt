@@ -6,6 +6,13 @@
 หน้าเว็บเป็นแค่ส่วนแสดงผลและแก้ไขค่า
 
 
+== ข้อกำหนดเบื้องต้น (Windows) ==
+
+- Python 3.11 เท่านั้น (Python 3.12+ ไม่รองรับ CadQuery)
+  ดาวน์โหลดจาก python.org/downloads เลือก Python 3.11.x Windows installer (64-bit)
+- Node.js (npm) สำหรับ Frontend
+
+
 == การติดตั้งและรัน ==
 
 --- Windows (PowerShell) ---
@@ -13,8 +20,8 @@
 1. รัน Backend:
 
    cd backend
-   python -m venv .venv
-   .venv\Scripts\Activate.ps1
+   py -3.11 -m venv .venv311
+   .venv311\Scripts\Activate.ps1
    pip install -r requirements.txt
    uvicorn app.main:app --reload
 
@@ -28,7 +35,11 @@
    npm install
    npm run dev
 
+   ถ้า port 5173 ถูกใช้งานอยู่ ให้รัน:
+   npm run dev -- --port 3000
+
 3. เปิดเบราว์เซอร์ไปที่: http://localhost:5173
+   (หรือ http://localhost:3000 ถ้าเปลี่ยน port)
 
 --- Linux / macOS ---
 
@@ -116,7 +127,7 @@ Pattern (รูปแบบซ้ำ):
 
 == ข้อควรรู้ ==
 
-- กด Preview ทุกครั้งหลังแก้ไขเพื่ออัพเดทโมเดล
+- กด Preview ทุกครั้งหลังแก้ไขเพื่ออัพเดตโมเดล
 - Geometry ทั้งหมดสร้างโดย Backend เท่านั้น
 - ห้าม Export จาก Three.js viewport โดยตรง
 - ไฟล์ STEP/STL ที่ได้มาจาก Backend เท่านั้น
@@ -127,7 +138,7 @@ Pattern (รูปแบบซ้ำ):
 
 Windows:
   cd backend
-  .venv\Scripts\Activate.ps1
+  .venv311\Scripts\Activate.ps1
   pytest tests/
 
 Linux/macOS:
