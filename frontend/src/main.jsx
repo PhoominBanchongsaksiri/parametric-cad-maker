@@ -461,11 +461,25 @@ function Preview({ previewUrl, previewKind, selectedPlane }) {
 
 // ── Form helpers ──────────────────────────────────────────────────────────────
 
-function Field({ label, value, onChange, type = "number", step = "0.1", min }) {
+function Field({ label, value, onChange, type = "number", step = "0.1", min, max }) {
+  const hasSlider = type === "number" && max != null;
+  const numVal = Number.isFinite(Number(value)) ? Number(value) : Number(min ?? 0);
+  const sliderVal = hasSlider ? Math.min(Math.max(numVal, Number(min ?? 0)), Number(max)) : numVal;
   return (
     <label>
       <span>{label}</span>
-      <input type={type} step={step} min={min} value={value} onChange={(e) => onChange(e.target.value)} />
+      {hasSlider ? (
+        <div className="fieldRow">
+          <input type="range" className="fieldSlider"
+            min={min ?? 0} max={max} step={step} value={sliderVal}
+            onChange={(e) => onChange(e.target.value)} />
+          <input className="fieldNum" type="number"
+            step={step} min={min} value={value}
+            onChange={(e) => onChange(e.target.value)} />
+        </div>
+      ) : (
+        <input type={type} step={step} min={min} value={value} onChange={(e) => onChange(e.target.value)} />
+      )}
     </label>
   );
 }
@@ -557,13 +571,13 @@ function PlaneOperationBlock({ block, selected, onSelect, onChange, onDuplicate,
         <div className="subPanel">
           <div className="subTitle">Custom Plane</div>
           <div className="formGrid compact">
-            <Field label="Origin X" value={block.customPlane.originX} onChange={(v) => setCustom("originX", v)} />
-            <Field label="Origin Y" value={block.customPlane.originY} onChange={(v) => setCustom("originY", v)} />
-            <Field label="Origin Z" value={block.customPlane.originZ} onChange={(v) => setCustom("originZ", v)} />
-            <Field label="Normal X" value={block.customPlane.normalX} onChange={(v) => setCustom("normalX", v)} />
-            <Field label="Normal Y" value={block.customPlane.normalY} onChange={(v) => setCustom("normalY", v)} />
-            <Field label="Normal Z" value={block.customPlane.normalZ} onChange={(v) => setCustom("normalZ", v)} />
-            <Field label="Rotation°" value={block.customPlane.rotation} onChange={(v) => setCustom("rotation", v)} />
+            <Field label="Origin X" value={block.customPlane.originX} onChange={(v) => setCustom("originX", v)} min={-300} max={300} />
+            <Field label="Origin Y" value={block.customPlane.originY} onChange={(v) => setCustom("originY", v)} min={-300} max={300} />
+            <Field label="Origin Z" value={block.customPlane.originZ} onChange={(v) => setCustom("originZ", v)} min={-300} max={300} />
+            <Field label="Normal X" value={block.customPlane.normalX} onChange={(v) => setCustom("normalX", v)} min={-1} max={1} step="0.01" />
+            <Field label="Normal Y" value={block.customPlane.normalY} onChange={(v) => setCustom("normalY", v)} min={-1} max={1} step="0.01" />
+            <Field label="Normal Z" value={block.customPlane.normalZ} onChange={(v) => setCustom("normalZ", v)} min={-1} max={1} step="0.01" />
+            <Field label="Rotation°" value={block.customPlane.rotation} onChange={(v) => setCustom("rotation", v)} min={0} max={360} />
           </div>
         </div>
       )}
@@ -572,8 +586,8 @@ function PlaneOperationBlock({ block, selected, onSelect, onChange, onDuplicate,
       <div className="subPanel" style={{ marginTop: 10 }}>
         <div className="subTitle" style={{ marginBottom: 8 }}>Position</div>
         <div className="formGrid">
-          <Field label="X local (mm)" value={block.x} onChange={(v) => set("x", v)} />
-          <Field label="Y local (mm)" value={block.y} onChange={(v) => set("y", v)} />
+          <Field label="X local (mm)" value={block.x} onChange={(v) => set("x", v)} min={-250} max={250} />
+          <Field label="Y local (mm)" value={block.y} onChange={(v) => set("y", v)} min={-250} max={250} />
         </div>
       </div>
 
@@ -599,13 +613,13 @@ function PlaneOperationBlock({ block, selected, onSelect, onChange, onDuplicate,
             {DEPTH_MODES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </SelectField>
           {["blind", "custom"].includes(block.depthMode) && (
-            <Field label="Depth (mm)" value={block.depth} onChange={(v) => set("depth", v)} min="0" />
+            <Field label="Depth (mm)" value={block.depth} onChange={(v) => set("depth", v)} min="0" max={200} />
           )}
         </div>
       )}
       {showShapeDropdown && ["blind", "custom"].includes(block.depthMode) && (
         <div className="formGrid" style={{ marginTop: 6 }}>
-          <Field label="Depth (mm)" value={block.depth} onChange={(v) => set("depth", v)} min="0" />
+          <Field label="Depth (mm)" value={block.depth} onChange={(v) => set("depth", v)} min="0" max={200} />
           <div />
         </div>
       )}
@@ -615,18 +629,18 @@ function PlaneOperationBlock({ block, selected, onSelect, onChange, onDuplicate,
         <div className="subPanel">
           <div className="subTitle">Size Controls</div>
           <div className="formGrid compact">
-            {showDiameter   && <Field label="Diameter (mm)" value={block.diameter}   onChange={(v) => set("diameter", v)}   min="0.1" />}
-            {showHoleDia    && <Field label="Diameter (mm)" value={block.diameter}   onChange={(v) => set("diameter", v)}   min="0.1" />}
-            {showSlotFields && <Field label="Length (mm)"   value={block.slotLength} onChange={(v) => set("slotLength", v)} min="0.1" />}
-            {showSlotFields && <Field label="Width (mm)"    value={block.slotWidth}  onChange={(v) => set("slotWidth", v)}  min="0.1" />}
-            {showWH         && <Field label="Width (mm)"    value={block.width}      onChange={(v) => set("width", v)}      min="0.1" />}
-            {showWH         && <Field label="Height (mm)"   value={block.height}     onChange={(v) => set("height", v)}     min="0.1" />}
-            {showCornerR    && <Field label="Corner radius" value={block.cornerRadius} onChange={(v) => set("cornerRadius", v)} min="0" />}
-            {isBoss         && <Field label="Outer ⌀ (mm)"  value={block.bossOuterDiameter} onChange={(v) => set("bossOuterDiameter", v)} min="0.1" />}
-            {isBoss         && <Field label="Height (mm)"   value={block.bossHeight}         onChange={(v) => set("bossHeight", v)}         min="0.1" />}
-            {isBoss         && <Field label="Inner ⌀ (mm)"  value={block.diameter}           onChange={(v) => set("diameter", v)}           min="0.1" />}
+            {showDiameter   && <Field label="Diameter (mm)" value={block.diameter}   onChange={(v) => set("diameter", v)}   min="0.1" max={100} />}
+            {showHoleDia    && <Field label="Diameter (mm)" value={block.diameter}   onChange={(v) => set("diameter", v)}   min="0.1" max={50} />}
+            {showSlotFields && <Field label="Length (mm)"   value={block.slotLength} onChange={(v) => set("slotLength", v)} min="0.1" max={200} />}
+            {showSlotFields && <Field label="Width (mm)"    value={block.slotWidth}  onChange={(v) => set("slotWidth", v)}  min="0.1" max={50} />}
+            {showWH         && <Field label="Width (mm)"    value={block.width}      onChange={(v) => set("width", v)}      min="0.1" max={200} />}
+            {showWH         && <Field label="Height (mm)"   value={block.height}     onChange={(v) => set("height", v)}     min="0.1" max={100} />}
+            {showCornerR    && <Field label="Corner radius" value={block.cornerRadius} onChange={(v) => set("cornerRadius", v)} min="0" max={30} />}
+            {isBoss         && <Field label="Outer ⌀ (mm)"  value={block.bossOuterDiameter} onChange={(v) => set("bossOuterDiameter", v)} min="0.1" max={80} />}
+            {isBoss         && <Field label="Height (mm)"   value={block.bossHeight}         onChange={(v) => set("bossHeight", v)}         min="0.1" max={100} />}
+            {isBoss         && <Field label="Inner ⌀ (mm)"  value={block.diameter}           onChange={(v) => set("diameter", v)}           min="0.1" max={50} />}
             {isSolid && ["blind","custom"].includes(block.depthMode) &&
-              <Field label="Add solid depth" value={block.depth} onChange={(v) => set("depth", v)} min="0.1" />}
+              <Field label="Add solid depth" value={block.depth} onChange={(v) => set("depth", v)} min="0.1" max={200} />}
           </div>
         </div>
       )}
@@ -700,14 +714,14 @@ function PlaneOperationBlock({ block, selected, onSelect, onChange, onDuplicate,
 
             {block.showCustom && (
               <div className="formGrid compact" style={{ marginTop: 8 }}>
-                <Field label="Hole ⌀ (mm)" value={block.diameter} onChange={(v) => set("diameter", v)} min="0.1" />
+                <Field label="Hole ⌀ (mm)" value={block.diameter} onChange={(v) => set("diameter", v)} min="0.1" max={30} />
                 {ht === "counterbore" && <>
-                  <Field label="Cbore ⌀ (mm)"   value={block.counterboreDiameter} onChange={(v) => set("counterboreDiameter", v)} min="0" />
-                  <Field label="Cbore depth"     value={block.counterboreDepth}    onChange={(v) => set("counterboreDepth", v)}    min="0" />
+                  <Field label="Cbore ⌀ (mm)"   value={block.counterboreDiameter} onChange={(v) => set("counterboreDiameter", v)} min="0" max={40} />
+                  <Field label="Cbore depth"     value={block.counterboreDepth}    onChange={(v) => set("counterboreDepth", v)}    min="0" max={30} />
                 </>}
                 {ht === "countersink" && <>
-                  <Field label="Csk ⌀ (mm)"    value={block.countersinkDiameter} onChange={(v) => set("countersinkDiameter", v)} min="0" />
-                  <Field label="Csk angle°"     value={block.countersinkAngle}    onChange={(v) => set("countersinkAngle", v)} />
+                  <Field label="Csk ⌀ (mm)"    value={block.countersinkDiameter} onChange={(v) => set("countersinkDiameter", v)} min="0" max={40} />
+                  <Field label="Csk angle°"     value={block.countersinkAngle}    onChange={(v) => set("countersinkAngle", v)} min={10} max={180} />
                 </>}
               </div>
             )}
@@ -723,24 +737,24 @@ function PlaneOperationBlock({ block, selected, onSelect, onChange, onDuplicate,
             {PATTERNS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </SelectField>
           {block.patternType === "linear" && <>
-            <Field label="Count"     step="1" value={block.linearCount}   onChange={(v) => set("linearCount", v)}   min="1" />
-            <Field label="Spacing"            value={block.linearSpacing}  onChange={(v) => set("linearSpacing", v)}  min="0.1" />
-            <Field label="Dir X"              value={block.directionX}     onChange={(v) => set("directionX", v)} />
-            <Field label="Dir Y"              value={block.directionY}     onChange={(v) => set("directionY", v)} />
-            <Field label="Dir Z"              value={block.directionZ}     onChange={(v) => set("directionZ", v)} />
+            <Field label="Count"     step="1" value={block.linearCount}   onChange={(v) => set("linearCount", v)}   min="1" max={20} />
+            <Field label="Spacing"            value={block.linearSpacing}  onChange={(v) => set("linearSpacing", v)}  min="0.1" max={200} />
+            <Field label="Dir X"              value={block.directionX}     onChange={(v) => set("directionX", v)} min={-1} max={1} step="0.01" />
+            <Field label="Dir Y"              value={block.directionY}     onChange={(v) => set("directionY", v)} min={-1} max={1} step="0.01" />
+            <Field label="Dir Z"              value={block.directionZ}     onChange={(v) => set("directionZ", v)} min={-1} max={1} step="0.01" />
           </>}
           {block.patternType === "grid" && <>
-            <Field label="Rows"    step="1" value={block.rows}         onChange={(v) => set("rows", v)}         min="1" />
-            <Field label="Columns" step="1" value={block.columns}      onChange={(v) => set("columns", v)}      min="1" />
-            <Field label="Row spacing"       value={block.rowSpacing}   onChange={(v) => set("rowSpacing", v)}   min="0.1" />
-            <Field label="Col spacing"       value={block.columnSpacing} onChange={(v) => set("columnSpacing", v)} min="0.1" />
+            <Field label="Rows"    step="1" value={block.rows}         onChange={(v) => set("rows", v)}         min="1" max={20} />
+            <Field label="Columns" step="1" value={block.columns}      onChange={(v) => set("columns", v)}      min="1" max={20} />
+            <Field label="Row spacing"       value={block.rowSpacing}   onChange={(v) => set("rowSpacing", v)}   min="0.1" max={200} />
+            <Field label="Col spacing"       value={block.columnSpacing} onChange={(v) => set("columnSpacing", v)} min="0.1" max={200} />
           </>}
           {block.patternType === "circular" && <>
-            <Field label="Count"   step="1" value={block.circularCount}  onChange={(v) => set("circularCount", v)}  min="1" />
-            <Field label="Center X"         value={block.centerX}        onChange={(v) => set("centerX", v)} />
-            <Field label="Center Y"         value={block.centerY}        onChange={(v) => set("centerY", v)} />
-            <Field label="Radius"           value={block.circularRadius}  onChange={(v) => set("circularRadius", v)} min="0" />
-            <Field label="Angle step°"      value={block.angleStep}       onChange={(v) => set("angleStep", v)} />
+            <Field label="Count"   step="1" value={block.circularCount}  onChange={(v) => set("circularCount", v)}  min="1" max={36} />
+            <Field label="Center X"         value={block.centerX}        onChange={(v) => set("centerX", v)} min={-200} max={200} />
+            <Field label="Center Y"         value={block.centerY}        onChange={(v) => set("centerY", v)} min={-200} max={200} />
+            <Field label="Radius"           value={block.circularRadius}  onChange={(v) => set("circularRadius", v)} min="0" max={200} />
+            <Field label="Angle step°"      value={block.angleStep}       onChange={(v) => set("angleStep", v)} min={1} max={360} />
           </>}
         </div>
       </div>
@@ -868,11 +882,11 @@ function App() {
             </div>
             <div className="formGrid compact">
               <Field label="Name"   type="text" value={body.name}   onChange={(v) => setBody({ ...body, name: v })} />
-              <Field label="Length" value={body.length} onChange={(v) => setBody({ ...body, length: v })} min="1" />
-              <Field label="Width"  value={body.width}  onChange={(v) => setBody({ ...body, width: v })}  min="1" />
-              <Field label="Height" value={body.height} onChange={(v) => setBody({ ...body, height: v })} min="1" />
-              {!body.solid && <Field label="Wall"   value={body.wall}         onChange={(v) => setBody({ ...body, wall: v })}         min="0.1" />}
-              <Field label="Fillet" value={body.fillet_radius} onChange={(v) => setBody({ ...body, fillet_radius: v })} min="0" />
+              <Field label="Length" value={body.length} onChange={(v) => setBody({ ...body, length: v })} min="1" max={500} />
+              <Field label="Width"  value={body.width}  onChange={(v) => setBody({ ...body, width: v })}  min="1" max={500} />
+              <Field label="Height" value={body.height} onChange={(v) => setBody({ ...body, height: v })} min="1" max={300} />
+              {!body.solid && <Field label="Wall"   value={body.wall}         onChange={(v) => setBody({ ...body, wall: v })}         min="0.1" max={20} />}
+              <Field label="Fillet" value={body.fillet_radius} onChange={(v) => setBody({ ...body, fillet_radius: v })} min="0" max={25} />
             </div>
           </section>
 
