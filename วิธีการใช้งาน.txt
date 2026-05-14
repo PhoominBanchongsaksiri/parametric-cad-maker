@@ -1,0 +1,136 @@
+วิธีการใช้งาน Parametric CAD Maker
+====================================
+
+โปรแกรมนี้สร้างโมเดล CAD แบบพาราเมตริกผ่านเบราว์เซอร์
+ทุก Geometry สร้างโดย Backend (CadQuery) เท่านั้น
+หน้าเว็บเป็นแค่ส่วนแสดงผลและแก้ไขค่า
+
+
+== การติดตั้งและรัน ==
+
+--- Windows (PowerShell) ---
+
+1. รัน Backend:
+
+   cd backend
+   python -m venv .venv
+   .venv\Scripts\Activate.ps1
+   pip install -r requirements.txt
+   uvicorn app.main:app --reload
+
+   หมายเหตุ: ถ้ามี Error "No module named 'vtkmodules'" ให้รันก่อน:
+   pip uninstall vtk -y
+   แล้วรัน uvicorn ใหม่
+
+2. รัน Frontend (เปิด Terminal ใหม่):
+
+   cd frontend
+   npm install
+   npm run dev
+
+3. เปิดเบราว์เซอร์ไปที่: http://localhost:5173
+
+--- Linux / macOS ---
+
+1. รัน Backend:
+
+   cd backend
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   uvicorn app.main:app --reload
+
+2. รัน Frontend (เปิด Terminal ใหม่):
+
+   cd frontend
+   npm install
+   npm run dev
+
+3. เปิดเบราว์เซอร์ไปที่: http://localhost:5173
+
+
+== การใช้งานหน้าเว็บ ==
+
+--- Base Body (ตัวชิ้นงานหลัก) ---
+
+- Name        : ชื่อโมเดล
+- Length/Width/Height : ขนาดชิ้นงาน (มิลลิเมตร)
+- Wall        : ความหนาผนัง (ใช้เมื่อเป็น Hollow)
+- Fillet      : ความโค้งมนขอบ (0 = ไม่มี)
+- ปุ่ม Solid/Hollow : สลับระหว่างชิ้นงานตันและกล่องกลวง
+
+--- Plane Operation (การดำเนินการบนหน้า) ---
+
+แต่ละ Block คือการดำเนินการหนึ่งอย่างบนชิ้นงาน
+
+เลือก Plane (หน้าที่จะทำงาน):
+  top / bottom / front / back / left / right / Custom Plane
+
+เลือก Operation:
+  - Cut            : เจาะ/ตัดรูป (วงกลม, สี่เหลี่ยม, ช่อง, Slot)
+  - Screw hole     : รูสกรู ISO M1-M10 (มี Wizard คำนวณขนาดอัตโนมัติ)
+  - Connector cutout : ช่องต่อ (USB-C, USB-A, HDMI, DC jack)
+  - Boss/standoff  : เสาสกรู (mounting boss)
+  - Add solid      : เพิ่มทรงตันบนชิ้นงาน (กระบอก, กล่อง)
+
+ตำแหน่ง:
+  - X local / Y local : ตำแหน่งบนหน้านั้น (จากจุดศูนย์กลาง)
+
+ความลึก (Depth mode):
+  - Through All    : ทะลุ
+  - Blind          : ไม่ทะลุ กำหนดความลึกเอง
+  - Up to Next     : ถึงผนังถัดไป
+  - Custom         : กำหนดเองเป็น mm
+
+Pattern (รูปแบบซ้ำ):
+  - Single         : ครั้งเดียว
+  - Linear         : เรียงเป็นแนว
+  - Grid           : ตาราง rows x columns
+  - Circular       : วงกลม (กำหนด radius และจำนวน)
+
+--- Screw Hole Wizard ---
+
+เลือกประเภทรู:
+  Simple (Clearance) / Cbore (Counterbore) / Csk (Countersink) / Tapped
+
+เลือกขนาดสกรู: M1, M1.2, M1.6, M2, M2.5, M3, M4, M5, M6, M8, M10
+เลือก Fit: Normal / Close / Loose
+โปรแกรมคำนวณขนาดรูให้อัตโนมัติตามมาตรฐาน ISO
+
+--- Timeline Bar (แถบด้านล่าง) ---
+
+แสดง Operation ทั้งหมดเรียงตามลำดับ คลิกเพื่อเลือก
+ไอคอนแต่ละแบบ:
+  ⊟ = Cut    ◎ = Screw hole    ▣ = Connector
+  ⬡ = Boss   ⬛ = Add solid
+
+
+== ปุ่มใน Toolbar ==
+
+- Validate          : ตรวจสอบความถูกต้องของโมเดล (ไม่สร้าง Geometry)
+- Preview / Update  : สั่ง Backend สร้าง Geometry แล้วแสดงผลใน Viewport
+- Export STEP       : ดาวน์โหลดไฟล์ .step (สำหรับ CAD software)
+- Export STL        : ดาวน์โหลดไฟล์ .stl (สำหรับ 3D printer)
+- Show JSON         : ดู Project JSON ที่ส่งไปยัง Backend
+
+
+== ข้อควรรู้ ==
+
+- กด Preview ทุกครั้งหลังแก้ไขเพื่ออัพเดทโมเดล
+- Geometry ทั้งหมดสร้างโดย Backend เท่านั้น
+- ห้าม Export จาก Three.js viewport โดยตรง
+- ไฟล์ STEP/STL ที่ได้มาจาก Backend เท่านั้น
+- Backend ต้องรันที่ port 8000 ก่อนเปิดหน้าเว็บ
+
+
+== รันเทส ==
+
+Windows:
+  cd backend
+  .venv\Scripts\Activate.ps1
+  pytest tests/
+
+Linux/macOS:
+  cd backend
+  source .venv/bin/activate
+  pytest tests/
