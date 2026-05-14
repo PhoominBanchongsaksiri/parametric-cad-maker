@@ -11,18 +11,53 @@ exports production geometry.
 ## Architecture
 
 ```text
-frontend/    React + TypeScript + Vite
-             Three.js / React Three Fiber — display only
-             Zustand state manager
+frontend/    React 19 + Vite 7
+             Plain JSX (no TypeScript)
+             Three.js 0.180 — display only, no React Three Fiber
+             No Zustand — plain React state
              Posts project JSON to backend for geometry
-             Downloads exports from backend endpoints
+             Downloads STEP/STL exports from backend endpoints
 
 backend/     Python FastAPI
              CadQuery / OpenCascade — all geometry
-             Project JSON schema with Pydantic
-             Exports: STEP, STL, 3MF, GLB preview
+             Project JSON schema with Pydantic v2
+             Exports: STEP, STL, GLB preview  (3MF not yet exposed)
              API: /api/health, /api/validate, /api/preview, /api/export/{fmt}
 
 examples/    Reference project JSON files
 
 tests/       Probe-based geometry verification
+             test_api.py, test_builder.py, test_resolver.py, test_validator.py
+```
+
+## Implemented features
+
+### Backend
+
+- FastAPI app with CORS
+- Pydantic v2 project schema (`schema.py`)
+- Parameter/formula resolver — expressions like `"L * 2"` resolved at build time
+- Validation endpoint — structured errors and warnings, no raw tracebacks
+- Feature builder (`builder.py`) — enclosure, all primitives, cutouts, holes,
+  screw holes, bosses, boolean ops, patterns
+- Exporter (`exporter.py`) — STEP, STL, GLB
+- Named-face and custom-plane workplane placement
+- Patterns: linear, grid, circular, mirror
+- Regression test suite
+
+### Frontend
+
+- Toolbar: Validate, Preview/Update, Export STEP, Export STL
+- Base Body panel: dimensions, wall thickness, fillet, solid/hollow toggle
+- Plane Operation blocks: add/remove/reorder, enable/disable per operation
+  - Cut (circle, rect, rounded_rect, slot)
+  - Screw hole with ISO M1–M10 wizard (clearance/counterbore/countersink/tapped, normal/close/loose fit)
+  - Connector cutout (USB-C, USB-A, HDMI, DC jack, rect, rounded_rect)
+  - Boss/standoff
+  - Add solid (cylinder, box)
+- Custom plane support (origin, normal, rotation)
+- Patterns: single, linear, grid, circular
+- Depth modes: through-all, blind, up-to-next, custom
+- Fusion 360-style timeline bar
+- JSON debug panel
+- Three.js viewport: GLB/STL from backend, orbit controls, grid, axes

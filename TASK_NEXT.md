@@ -1,92 +1,41 @@
 # TASK_NEXT.md — Next Tasks
 
-## Immediate task
+## Status
 
-Set up the clean GitHub repository foundation first.
+Steps 1–3 are complete:
 
-This is a fresh repository. The previous backend prototype was proven in an earlier session, but it has not yet been recreated in this repo.
+- [x] Step 1 — Repository foundation
+- [x] Step 2 — Backend core (FastAPI, CadQuery builder, exporter, tests)
+- [x] Step 3 — Frontend shell (React 19, Vite 7, Three.js viewer, plane operations editor)
 
-Do not start the frontend yet.
+---
 
-## Step 1 — Repository foundation
+## Step 4 — Multi-body and JSON import/export
 
-Create:
+The frontend currently hard-codes a single body (`shell`). Next tasks:
 
-- README.md
-- CLAUDE.md
-- PROJECT_STATUS.md
-- TASK_NEXT.md
-- .gitignore
-- backend/
-- frontend/
-- examples/
-- backend/README.md
-- frontend/README.md
+- Allow the user to add more than one base body (second enclosure, second primitive, etc.)
+- Wire the `target` field in each operation block to a dropdown of existing body IDs
+- **JSON export** — download the current project as a `.json` file
+- **JSON import** — load a project JSON file and populate the UI
 
-Do not implement backend CAD code yet.
-Do not build frontend yet.
+## Step 5 — 3MF export
 
-## Step 2 — Backend core recreation
+Implement a real 3MF exporter in the backend and expose it via `POST /api/export/3mf`.
+Add an **Export 3MF** button to the frontend toolbar.
 
-After the repository foundation is committed, recreate the backend from the proven prototype.
+## Step 6 — TypeScript migration (optional)
 
-Required backend features:
+Migrate `frontend/src/main.jsx` to TypeScript + strict types.
+Add `tsconfig.json`, rename file to `main.tsx`.
 
-- FastAPI app
-- Pydantic project schema
-- Parameter/formula resolver
-- Validation routing with separate errors and warnings
-- CadQuery/OpenCascade model builder
-- Enclosure generator
-- Primitive generator
-- Real cutouts on all supported faces
-- bossPattern
-- screw through-holes
-- counterbore
-- countersink
-- STEP export
-- STL export
-- 3MF export
-- GLB preview via POST /api/preview
-- Probe-based regression tests
-- Smoke test
+## Step 7 — Feature tree and property panel
 
-## Step 3 — Frontend shell
+Replace the flat block list with a proper tree view that shows the body hierarchy
+(parent body → child operations). Add a dedicated property panel that appears on
+the right when a feature is selected.
 
-Only after backend tests pass, build the minimal frontend shell:
+## Step 8 — Parameter editor
 
-- React + TypeScript + Vite
-- Three.js / React Three Fiber viewport
-- POST project JSON to backend /api/preview
-- Display backend-generated GLB
-- Export buttons for STEP, STL, 3MF, JSON
-- Placeholder feature tree
-- Placeholder property panel
-
-Frontend must never generate production geometry.
-Frontend must never export from the Three.js scene.
-
-## Exact prompt for Claude Code — next task
-
-Paste this first:
-
-Follow CLAUDE.md, PROJECT_STATUS.md, and TASK_NEXT.md.
-
-Task:
-Set up the repository foundation only.
-
-Create:
-- .gitignore
-- backend/
-- frontend/
-- examples/
-- backend/README.md
-- frontend/README.md
-
-Do not implement backend CAD code yet.
-Do not build frontend yet.
-Do not start Phase 3 yet.
-
-Report only:
-1. changed files
-2. blockers
+Expose the `parameters` array in the UI so users can define named parameters
+(e.g. `L = 90`) and use them as expressions in dimension fields.
